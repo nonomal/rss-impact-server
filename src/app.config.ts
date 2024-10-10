@@ -103,7 +103,14 @@ export const DATABASE_SCHEMA = env.DATABASE_SCHEMA || 'public'
 
 export const DATABASE_SSL = env.DATABASE_SSL === 'true'
 
+export const DATABASE_INDEX_LENGTH = Number(env.DATABASE_INDEX_LENGTH || 1024)
+
 export const SESSION_MAX_AGE = env.SESSION_MAX_AGE
 
 export const ENABLE_ORIGIN_LIST = env.ENABLE_ORIGIN_LIST?.split(',')?.map((e) => e?.trim())?.filter(Boolean)
 
+export const ARTICLE_LIMIT_MAX = Number(env.ARTICLE_LIMIT_MAX || 1000)
+
+export const DEFAULT_FEED_CRON = env.DEFAULT_FEED_CRON || 'EVERY_10_MINUTES'
+
+export const SENTRY_DSN = env.SENTRY_DSN || ''

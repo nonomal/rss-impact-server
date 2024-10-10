@@ -3,6 +3,7 @@ import { CI, ENABLE_ORIGIN_LIST, PORT, RESOURCE_DOWNLOAD_PATH, __BENCHMARKS_TEST
 import path from 'path'
 import moduleAlias from 'module-alias'
 moduleAlias.addAlias('@', path.join(__dirname, './'))
+import './utils/sentry'
 import { NestFactory } from '@nestjs/core'
 import { SwaggerModule, DocumentBuilder, SwaggerDocumentOptions } from '@nestjs/swagger'
 import { NestExpressApplication } from '@nestjs/platform-express'
@@ -41,11 +42,13 @@ async function bootstrap() {
             cb(null, {})
             return
         }
-        const enableOrigin = ENABLE_ORIGIN_LIST.includes(req.header('Origin'))
+
+        const origin = req.header('Origin') || `${req.protocol}://${req.hostname}`
+        const enableOrigin = ENABLE_ORIGIN_LIST.some((url) => url.startsWith(origin))
         cb(null, {
-            origin: enableOrigin,
-            methods: ['GET', 'PUT', 'POST', 'DELETE'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
+            origin: enableOrigin && origin,
+            methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie', 'Accept', 'Accept-Language', 'Content-Language', 'Sentry-Trace', 'Baggage'],
             credentials: enableOrigin, // 本项目中还需要启用 cookie
         })
     })
@@ -75,8 +78,7 @@ async function bootstrap() {
         app.use(setRequestId)
         app.use(jsonLogger)
     }
-    app.use(helmet({}))
-    // app.use(consoleLogger)
+    // app.use(helmet({}))
     app.useGlobalFilters(new AllExceptionsFilter())
     app.useGlobalInterceptors(new TimeoutInterceptor())
     app.useGlobalPipes(new ValidationPipe({
@@ -103,7 +105,6 @@ async function bootstrap() {
     })) // 解决单页应用程序(SPA)重定向问题
 
     await app.listen(PORT)
-
     logger.log(`应用访问地址为 http://127.0.0.1:${PORT}`)
     if (__DEV__) {
         logger.debug(`Docs http://127.0.0.1:${PORT}/docs`)

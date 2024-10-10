@@ -29,6 +29,10 @@
 > 一个支持 Hook 的 RSS 订阅工具。
 >
 > 本项目为后端部分，前端部分请参考 [rss-impact-web](https://github.com/CaoMeiYouRen/rss-impact-web)。
+>
+> **rss-impact-plus** 正在众筹中，详情请点击链接查看：[rss-impact-plus 众筹](https://afdian.com/project/73a4fc8e6de911efa0f95254001e7c00)。
+>
+> 当 RSS Impact 开发完毕的时候，您将收到通知邮件，**[点击链接立即加入等待名单](https://waitlist.cmyr.dev)**。
 
 ## 🏠 主页
 
@@ -57,7 +61,7 @@ https://rss-demo.cmyr.dev
 - 支持从 OPML 文件导入订阅，也支持导出订阅为 OPML 文件。
 - 支持 Docker 一键部署。
 - 支持 Redis 缓存。
-- 支持 SQLite/MySQL/Postgres 作为数据库 (详见：[数据库配置](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docs/usage.md#数据库配置))。
+- 支持 SQLite/MySQL/Postgres 作为数据库 (详见：[数据库配置](./docs/usage.md#数据库配置))。
 - 支持配置代理。
 - 支持自动抓取全文。无需配置 css 查询器。
 
@@ -119,7 +123,7 @@ docker-compose up -d
 
 ### 更多部署方式
 
-更多部署方式请查看 [部署文档](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docs/deploy.md)
+更多部署方式请查看 [部署文档](./docs/deploy.md)
 
 ## 👨‍💻 使用
 
@@ -127,7 +131,7 @@ docker-compose up -d
 pnpm run start
 ```
 
-更多使用说明请参考 [使用文档](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docs/usage.md)
+更多使用说明请参考 [使用文档](./docs/usage.md)
 
 ## 🛠️ 开发
 
@@ -176,7 +180,11 @@ pnpm run commit
 
 ## 💰 支持
 
-如果觉得这个项目有用的话请给一颗⭐️，非常感谢
+如果觉得这个项目有用的话请给一颗⭐️，非常感谢。
+
+<a href="https://afdian.com/@CaoMeiYouRen">
+  <img src="https://cdn.jsdelivr.net/gh/CaoMeiYouRen/image-hosting-01@master/images/202306192324870.png" width="312px" height="78px" alt="在爱发电支持我">
+</a>
 
 ## 🌟 Star History
 

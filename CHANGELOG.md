@@ -1,5 +1,67 @@
 # rss-impact-server
 
+# [1.6.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.3...v1.6.0) (2024-10-05)
+
+
+### ♻ 代码重构
+
+* 增加 CronJob 配置环境变量 ([c10e961](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c10e961))
+
+
+### ✨ 新功能
+
+* 新增 Sentry 配置 ([2b58003](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2b58003))
+
+
+### 🐛 Bug 修复
+
+* 修复 部分情况下缺少 Origin 判断的问题 ([9329912](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9329912))
+
+## [1.5.3](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.2...v1.5.3) (2024-09-28)
+
+
+### 🐛 Bug 修复
+
+* 修复 Article 的 enclosureLength 字段类型改为 bigint，最大值调整为 Number.MAX_SAFE_INTEGER ([b9f1b3f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b9f1b3f))
+* 修复 附件大小的范围过小的问题 ([6ca85eb](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6ca85eb)), closes [#357](https://github.com/CaoMeiYouRen/rss-impact-server/issues/357)
+
+## [1.5.2](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.1...v1.5.2) (2024-09-21)
+
+
+### ♻ 代码重构
+
+* 优化 全文抓取失败的逻辑 ([606ee66](https://github.com/CaoMeiYouRen/rss-impact-server/commit/606ee66)), closes [#325](https://github.com/CaoMeiYouRen/rss-impact-server/issues/325)
+* 优化 单个订阅增加最大文章数量限制 ([db9a73b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/db9a73b)), closes [#324](https://github.com/CaoMeiYouRen/rss-impact-server/issues/324)
+* 增加 手动调用 sqlite VACUUM 命令的接口 ([893d080](https://github.com/CaoMeiYouRen/rss-impact-server/commit/893d080))
+* 添加 数据库查询日志 ([9cd6842](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9cd6842))
+* 重构 修改查询数据库信息逻辑，改为使用 TypeORM DataSource ([87980be](https://github.com/CaoMeiYouRen/rss-impact-server/commit/87980be))
+
+
+### 🐛 Bug 修复
+
+* 修复 sqlite 不会自动释放未使用的空间的 bug；重构 sqlite 查询和执行相关逻辑 ([0cbb286](https://github.com/CaoMeiYouRen/rss-impact-server/commit/0cbb286))
+* 修复 删除超过限制的文章数量逻辑错误的 bug ([2f9e131](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2f9e131))
+* 修复 在非严格模式下，Cookie 无法跨域的问题 ([12a945d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/12a945d)), closes [#334](https://github.com/CaoMeiYouRen/rss-impact-server/issues/334)
+* 修复 字符编码为 utf8mb4 时，MySQL 无法创建索引的问题；更新了 MySQL 相关文档 ([a64fbd5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a64fbd5))
+* 修复 队列中存在未捕获的错误 ([fd77a71](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fd77a71)), closes [#312](https://github.com/CaoMeiYouRen/rss-impact-server/issues/312)
+
+## [1.5.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.0...v1.5.1) (2024-09-14)
+
+
+### ♻ 代码重构
+
+* 优化 增加了 SSL 连接选项 ([15538a6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/15538a6))
+* 回退 postgres 的 id 为 integer 类型 ([ea0153d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ea0153d))
+* 重构 TasksService 和 helper；更新 订阅 队列逻辑；增加 Hook 队列执行优先级 ([91b8c46](https://github.com/CaoMeiYouRen/rss-impact-server/commit/91b8c46))
+* 重构 删除 Base 实体中的不必要的日志；将 TasksService 中的 setTimeout 更改为 bitTorrentQueue ([156b363](https://github.com/CaoMeiYouRen/rss-impact-server/commit/156b363))
+* 重构 队列增加超时时间；bitTorrentHook 增加优先级设置 ([07bed83](https://github.com/CaoMeiYouRen/rss-impact-server/commit/07bed83))
+
+
+### 🐛 Bug 修复
+
+* 修复 Resource 部分字段不能为 null 的 bug ([542c5ec](https://github.com/CaoMeiYouRen/rss-impact-server/commit/542c5ec))
+* 处理部分情况下，postgres 数据库的兼容性问题；更新文档 ([059b2a4](https://github.com/CaoMeiYouRen/rss-impact-server/commit/059b2a4))
+
 # [1.5.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.4.2...v1.5.0) (2024-09-07)
 
 

@@ -44,7 +44,7 @@
 下载 [docker-compose.yml](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docker-compose.yml)
 
 ```sh
-wget https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docker-compose.yml
+wget https://raw.githubusercontent.com/CaoMeiYouRen/rss-impact-server/master/docker-compose.yml
 ```
 
 检查有无需要修改的配置
@@ -223,13 +223,23 @@ CACHE_CONTENT_EXPIRE=3600
 
 `MySQL`  和 `PostgreSQL` 数据库**不会**优先支持，可能存在兼容性问题。如果遇到此类问题，请提 [issue](https://github.com/CaoMeiYouRen/rss-impact-server/issues)。 
 
+> 如果你需要寻找一个免费的 MySQL/PostgreSQL 数据库，请参考 [ripienaar/free-for-dev](https://github.com/ripienaar/free-for-dev) 中列出的云服务商，其中包含了一些免费 MySQL/PostgreSQL 数据库服务。。
+
 ## 使用 SQLite 数据库
 
 无需特别配置
 
 数据库文件默认保存在 `data/database.sqlite` 路径下。
 
-## 使用 MySQL  数据库
+如果你修改了 `DATA_PATH`，则数据库文件在 `DATA_PATH + "/database.sqlite"` 路径下。
+
+## 使用 MySQL 数据库
+
+> 如果你需要一个免费的 MySQL 数据库，可以考虑使用 [TiDB](https://tidbcloud.com/) 或  [Aiven for MySQL](https://aiven.io/pricing?product=mysql)。
+>
+> TiDB 提供一个 5 GB 的兼容 MySQL 的分布式数据库。详见 [Pricing Details](https://www.pingcap.com/tidb-serverless-pricing-details/)。
+>
+> Aiven 提供一个 5 GB 的免费 MySQL 数据库。详见 [Free plans](https://aiven.io/docs/platform/concepts/free-plan)。备注：在使用 aiven 之前，请先确保可以服务器可以访问 aivencloud.com，以免无法连接。
 
 在环境变量中进行如下配置
 
@@ -248,6 +258,9 @@ DATABASE_PASSWORD=''
 DATABASE_DATABASE='rss-impact'
 # 连接的字符集 默认为 utf8_general_ci
 DATABASE_CHARSET='utf8_general_ci'
+# MySQL 设置索引最大长度。
+# MySQL 索引最大不超过 3072 字节，在 utf8 编码下不超过 1024 字符，utf8mb4 编码不超过 768 字符
+DATABASE_INDEX_LENGTH=1024
 # MySQL 服务器上配置的时区 （默认：local）
 DATABASE_TIMEZONE='local'
 # 带有 ssl 参数的对象
@@ -261,6 +274,13 @@ DATABASE_SSL=false
 **特别提醒：更新数据表结构可能会导致数据丢失，请提前做好备份！**
 
 ## 使用 PostgreSQL 数据库
+
+> 如果你需要一个免费的 PostgreSQL 数据库，推荐使用 [Supabase](https://supabase.com/) 或 [Vercel](https://vercel.com/)。
+>
+> Supabase 提供一个 500 MB 的免费 PostgreSQL 数据库，并且对数据库运行时间没有限制，非常适合个人用户使用。详见 [pricing](https://supabase.com/pricing)
+>
+> Vercel 提供一个 256 MB 的免费 PostgreSQL 数据库，但对数据库运行时间有限制。详见 [Vercel Postgres Pricing](https://vercel.com/docs/storage/vercel-postgres/usage-and-pricing#vercel-postgres-pricing)
+>
 
 在环境变量中进行如下配置
 
