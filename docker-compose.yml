@@ -5,7 +5,7 @@ services:
     # build: .
     container_name: 'rss-impact-server'
     image: ${DOCKER_IMAGE:-caomeiyouren/rss-impact-server}
-    restart: always
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
@@ -17,6 +17,24 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       SESSION_SECRET: ${SESSION_SECRET:-RSS_IMPACT}
       RESOURCE_DOWNLOAD_PATH: './data/download'
+      # 启用跨域。如果前端和后端部署在不同域名下，需要跨域时，配置该项。
+      # 通过 docker 部署时，也会产生跨域问题，需要配置该项。
+      # 如果你有前置的反向代理服务，例如 Nginx 等，则无需配置该项。
+      ENABLE_ORIGIN_LIST: 'http://localhost:3000,http://127.0.0.1:3000'
+      REDIS_URL: 'redis://redis:6379'
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        # 资源上限：SQLite 并发写入需要足够的 CPU 和内存
+        limits:
+            cpus: 1.0
+            memory: 1G
+  redis:
+    image: redis:6-alpine
+    restart: always
+    volumes:
+      - ./redis-data:/data

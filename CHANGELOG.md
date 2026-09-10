@@ -1,5 +1,555 @@
 # rss-impact-server
 
+## [1.18.6](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.18.5...v1.18.6) (2026-09-05)
+
+
+### 🐛 Bug 修复
+
+* **deps:** bump brace-expansion, browserslist, fast-uri, ip-address, js-yaml, nanoid, undici, decode-uri-component, postcss, qs ([3376aca](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3376aca))
+* **deps:** remove decode-uri-component override to fix Jest ESM compatibility ([9fe327a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9fe327a))
+
+## [1.18.5](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.18.4...v1.18.5) (2026-08-01)
+
+
+### 🐛 Bug 修复
+
+* **deps:** 移除 @opentelemetry/core v2 覆写，恢复兼容性 ([2488ab2](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2488ab2))
+
+## [1.18.4](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.18.3...v1.18.4) (2026-06-27)
+
+
+### ✅ 测试
+
+* **opentelemetry-deps:** 跳过 package.json 测试以防止不兼容变更 ([c9bacc3](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c9bacc3))
+
+
+### 🐛 Bug 修复
+
+* **db:** 启用 SQLite WAL + synchronous=NORMAL + busy_timeout 并优化 Docker 构建 ([a2742c3](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a2742c3))
+* **docker:** 更新 @vercel/nft 版本至 1.10.2 ([7734cd9](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7734cd9))
+
+## [1.18.3](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.18.2...v1.18.3) (2026-06-20)
+
+
+### ✅ 测试
+
+* **db:** 添加 SQLite journal mode 和 better-sqlite3 版本锁定测试 ([98f11d8](https://github.com/CaoMeiYouRen/rss-impact-server/commit/98f11d8))
+* **db:** 添加 SQLite 磁盘 I/O 错误写入测试用例 ([c1e3390](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c1e3390))
+
+
+### 🐛 Bug 修复
+
+* **db:** 为 SQLite 启用 WAL 模式解决并发 disk I/O 错误 ([a99867f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a99867f))
+* **db:** 使用 better-sqlite3 原生 pragma 替代 TypeORM query 执行 PRAGMA ([f918542](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f918542))
+* **db:** 将 SQLite journal 模式从 WAL 改为 DELETE ([c11d936](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c11d936))
+* **db:** 更新 SQLite journal 模式为 WAL 并设置 synchronous=NORMAL ([696cbc7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/696cbc7))
+* **db:** 移除 SQLite PRAGMA 配置回归 v1.18.2 基线，降级 better-sqlite3 至 ^12.8.0 ([fbfa5f8](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fbfa5f8))
+* **db:** 移除 TypeORM 连接上的 WAL pragma 重复设置 ([2dbb0d6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2dbb0d6))
+
+## [1.18.2](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.18.1...v1.18.2) (2026-05-02)
+
+
+### ✅ 测试
+
+* **cache:** 添加缓存服务的单元测试 ([69db314](https://github.com/CaoMeiYouRen/rss-impact-server/commit/69db314))
+
+
+### 🐛 Bug 修复
+
+* **deps:** 更新依赖项和缓存管理实现 ([2cc9aca](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2cc9aca))
+
+## [1.18.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.18.0...v1.18.1) (2026-04-04)
+
+
+### ✅ 测试
+
+* 添加类型检查步骤以确保代码质量 ([9561979](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9561979))
+
+
+### 🐛 Bug 修复
+
+* **deps:** repair duplicated mapping key in pnpm-lock.yaml ([3c9f1de](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3c9f1de))
+
+
+### 📦 代码重构
+
+* 修改类型断言以提高代码类型安全性 ([ad290a2](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ad290a2))
+* 将类型定义从 type 更改为 interface 以提高可读性和一致性 ([70bd50b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/70bd50b))
+
+# [1.18.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.17.2...v1.18.0) (2025-12-27)
+
+
+### ✅ 测试
+
+* 更新测试用例以使用 better-sqlite3 数据库驱动 ([b7ae27c](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b7ae27c))
+
+
+### ✨ 新功能
+
+* 使用 feedsmith 替换 art-template 生成 Atom、RSS 和 JSON Feed ([bfdf856](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bfdf856))
+
+
+### 🐛 Bug 修复
+
+* **db:** 升级数据库配置以支持 better-sqlite3 驱动 ([90552a2](https://github.com/CaoMeiYouRen/rss-impact-server/commit/90552a2))
+* 移除 connect-sqlite3 依赖，添加 better-sqlite3 支持的会话存储 ([6277adc](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6277adc))
+* 重构 Atom 和 RSS 函数以增强可读性和错误处理 ([33185a0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/33185a0))
+
+## [1.17.2](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.17.1...v1.17.2) (2025-11-22)
+
+
+### ✅ 测试
+
+* 添加 IsCustomURL 装饰器的单元测试 ([abd6c6e](https://github.com/CaoMeiYouRen/rss-impact-server/commit/abd6c6e))
+* 添加对 formatGuid 和 rssItemToArticle 函数的单元测试以增强测试覆盖率 ([70e462d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/70e462d))
+
+
+### 🐛 Bug 修复
+
+* 更新 formatGuid 和 rssItemToArticle 函数以增强链接处理逻辑 ([c3c3204](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c3c3204))
+
+## [1.17.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.17.0...v1.17.1) (2025-11-08)
+
+
+### 🐛 Bug 修复
+
+* **notification:** 添加基于isRemotePush的远程推送字段条件验证 ([0956af9](https://github.com/CaoMeiYouRen/rss-impact-server/commit/0956af9))
+
+## 1.17.0 (2025-11-01)
+
+* chore: 移除旧的 commitlint 配置并添加新的配置 ([709c149](https://github.com/CaoMeiYouRen/rss-impact-server/commit/709c149))
+* chore: 移除旧的 ESLint 配置文件并添加新的配置文件 ([df912d7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/df912d7))
+* chore(deps-dev): bump @nestjs/cli from 11.0.7 to 11.0.10 ([cdc437f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/cdc437f))
+* chore(deps-dev): bump @nestjs/schematics from 11.0.5 to 11.0.7 ([c7d81c8](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c7d81c8))
+* chore(deps-dev): bump @nestjs/schematics from 11.0.7 to 11.0.9 ([4fbd562](https://github.com/CaoMeiYouRen/rss-impact-server/commit/4fbd562))
+* chore(deps-dev): bump @types/connect-sqlite3 from 0.9.5 to 0.9.6 ([cdb80b0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/cdb80b0))
+* chore(deps-dev): bump @types/cookie-parser from 1.4.9 to 1.4.10 ([e3d08d1](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e3d08d1))
+* chore(deps-dev): bump @types/express from 5.0.3 to 5.0.5 ([06d1e55](https://github.com/CaoMeiYouRen/rss-impact-server/commit/06d1e55))
+* chore(deps-dev): bump @types/md5 from 2.3.5 to 2.3.6 ([170d608](https://github.com/CaoMeiYouRen/rss-impact-server/commit/170d608))
+* chore(deps-dev): bump @types/node from 24.1.0 to 24.2.1 ([ec4daed](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ec4daed))
+* chore(deps-dev): bump @types/node from 24.2.1 to 24.3.0 ([ec54ea1](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ec54ea1))
+* chore(deps-dev): bump @types/node from 24.3.0 to 24.6.0 ([2bb10af](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2bb10af))
+* chore(deps-dev): bump @types/node from 24.6.0 to 24.9.2 ([51ce3f7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/51ce3f7))
+* chore(deps-dev): bump @types/pg from 8.15.4 to 8.15.5 ([a36eab8](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a36eab8))
+* chore(deps-dev): bump @types/validator from 13.15.2 to 13.15.3 ([866e7b3](https://github.com/CaoMeiYouRen/rss-impact-server/commit/866e7b3))
+* chore(deps-dev): bump @types/validator from 13.15.3 to 13.15.4 ([9b0b0ce](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9b0b0ce))
+* chore(deps-dev): bump commitlint from 19.8.1 to 20.1.0 ([a81f385](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a81f385))
+* chore(deps-dev): bump commitlint-config-cmyr from 1.0.0-beta.2 to 1.0.0 ([ca74b2d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ca74b2d))
+* chore(deps-dev): bump conventional-changelog-cmyr-config ([39009c6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/39009c6))
+* chore(deps-dev): bump cross-env from 10.0.0 to 10.1.0 ([3f80edb](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3f80edb))
+* chore(deps-dev): bump cz-conventional-changelog-cmyr ([3e7df37](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3e7df37))
+* chore(deps-dev): bump debug from 4.4.1 to 4.4.3 ([5ea69a2](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5ea69a2))
+* chore(deps-dev): bump eslint from 9.33.0 to 9.34.0 ([d5eed47](https://github.com/CaoMeiYouRen/rss-impact-server/commit/d5eed47))
+* chore(deps-dev): bump eslint from 9.34.0 to 9.36.0 ([49b7c40](https://github.com/CaoMeiYouRen/rss-impact-server/commit/49b7c40))
+* chore(deps-dev): bump eslint from 9.36.0 to 9.38.0 ([e1bcbd6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e1bcbd6))
+* chore(deps-dev): bump eslint-config-cmyr ([6c5ad20](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6c5ad20))
+* chore(deps-dev): bump eslint-config-cmyr from 2.0.0 to 2.0.1 ([7e78752](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7e78752))
+* chore(deps-dev): bump eslint-config-cmyr from 2.0.0-beta.15 to 2.0.0 ([2d28b80](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2d28b80))
+* chore(deps-dev): bump jest from 30.0.5 to 30.1.1 ([15ab975](https://github.com/CaoMeiYouRen/rss-impact-server/commit/15ab975))
+* chore(deps-dev): bump jest from 30.1.1 to 30.2.0 ([fa892a4](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fa892a4))
+* chore(deps-dev): bump lint-staged from 16.1.2 to 16.1.4 ([fa7e420](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fa7e420))
+* chore(deps-dev): bump lint-staged from 16.1.4 to 16.1.5 ([9f465ea](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9f465ea))
+* chore(deps-dev): bump lint-staged from 16.1.5 to 16.2.3 ([4092e59](https://github.com/CaoMeiYouRen/rss-impact-server/commit/4092e59))
+* chore(deps-dev): bump lint-staged from 16.2.3 to 16.2.6 ([42dece5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/42dece5))
+* chore(deps-dev): bump octokit from 5.0.3 to 5.0.5 ([14ad051](https://github.com/CaoMeiYouRen/rss-impact-server/commit/14ad051))
+* chore(deps-dev): bump ts-jest from 29.4.0 to 29.4.1 ([8d40b93](https://github.com/CaoMeiYouRen/rss-impact-server/commit/8d40b93))
+* chore(deps-dev): bump ts-jest from 29.4.1 to 29.4.4 ([28dcc77](https://github.com/CaoMeiYouRen/rss-impact-server/commit/28dcc77))
+* chore(deps-dev): bump tsx from 4.20.3 to 4.20.4 ([f22e51a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f22e51a))
+* chore(deps-dev): bump tsx from 4.20.4 to 4.20.5 ([be7332f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/be7332f))
+* chore(deps-dev): bump tsx from 4.20.5 to 4.20.6 ([38d4bf6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/38d4bf6))
+* chore(deps-dev): bump typescript from 5.8.3 to 5.9.2 ([6cdf34f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6cdf34f))
+* chore(deps-dev): bump typescript from 5.9.2 to 5.9.3 ([065a219](https://github.com/CaoMeiYouRen/rss-impact-server/commit/065a219))
+* chore(deps-dev): bump vitepress from 1.6.3 to 1.6.4 ([dec26c6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/dec26c6))
+* chore(deps): bump @nestjs/common from 11.1.5 to 11.1.6 ([3283acc](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3283acc))
+* chore(deps): bump @nestjs/common from 11.1.6 to 11.1.8 ([ee12e9a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ee12e9a))
+* chore(deps): bump @nestjs/schedule from 6.0.0 to 6.0.1 ([e0f8660](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e0f8660))
+* chore(deps): bump actions/checkout from 4 to 5 ([f4f3955](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f4f3955))
+* chore(deps): bump actions/configure-pages from 4 to 5 ([5e0e536](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5e0e536))
+* chore(deps): bump actions/setup-node from 4 to 5 ([b777a55](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b777a55))
+* chore(deps): bump actions/setup-node from 5 to 6 ([efa29c0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/efa29c0))
+* chore(deps): bump actions/upload-pages-artifact from 3 to 4 ([f235b71](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f235b71))
+* chore(deps): bump alstr/todo-to-issue-action from 4 to 5 ([5b28cab](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5b28cab))
+* chore(deps): bump axios from 1.11.0 to 1.12.0 ([e075eb1](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e075eb1))
+* chore(deps): bump axios from 1.12.0 to 1.13.1 ([fba1e87](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fba1e87))
+* chore(deps): bump codecov/codecov-action from 4.0.1 to 5.5.0 ([3f4d334](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3f4d334))
+* chore(deps): bump codecov/codecov-action from 5.5.0 to 5.5.1 ([f15c827](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f15c827))
+* chore(deps): bump cron from 4.3.2 to 4.3.3 ([fa42449](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fa42449))
+* chore(deps): bump dayjs from 1.11.13 to 1.11.18 ([10c5208](https://github.com/CaoMeiYouRen/rss-impact-server/commit/10c5208))
+* chore(deps): bump dayjs from 1.11.18 to 1.11.19 ([387f8b7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/387f8b7))
+* chore(deps): bump docker/build-push-action from 5 to 6 ([2abdfe3](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2abdfe3))
+* chore(deps): bump dotenv from 17.2.1 to 17.2.3 ([826349b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/826349b))
+* chore(deps): bump entities from 6.0.1 to 7.0.0 ([7f2572c](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7f2572c))
+* chore(deps): bump express-rate-limit from 8.0.1 to 8.1.0 ([a853083](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a853083))
+* chore(deps): bump express-rate-limit from 8.1.0 to 8.2.1 ([d502f19](https://github.com/CaoMeiYouRen/rss-impact-server/commit/d502f19))
+* chore(deps): bump fs-extra from 11.3.0 to 11.3.1 ([ad20824](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ad20824))
+* chore(deps): bump fs-extra from 11.3.1 to 11.3.2 ([bff5821](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bff5821))
+* chore(deps): bump ioredis from 5.6.1 to 5.7.0 ([bad999f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bad999f))
+* chore(deps): bump ioredis from 5.7.0 to 5.8.0 ([43ad738](https://github.com/CaoMeiYouRen/rss-impact-server/commit/43ad738))
+* chore(deps): bump ioredis from 5.8.0 to 5.8.2 ([1e9ed4e](https://github.com/CaoMeiYouRen/rss-impact-server/commit/1e9ed4e))
+* chore(deps): bump mysql2 from 3.14.2 to 3.14.3 ([1f0b939](https://github.com/CaoMeiYouRen/rss-impact-server/commit/1f0b939))
+* chore(deps): bump mysql2 from 3.14.3 to 3.15.1 ([37f0237](https://github.com/CaoMeiYouRen/rss-impact-server/commit/37f0237))
+* chore(deps): bump mysql2 from 3.15.1 to 3.15.3 ([523ee01](https://github.com/CaoMeiYouRen/rss-impact-server/commit/523ee01))
+* chore(deps): bump push-all-in-one from 4.4.3 to 4.4.4 ([3db29c9](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3db29c9))
+* chore(deps): bump push-all-in-one from 4.4.4 to 4.4.7 ([6805c8d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6805c8d))
+* chore(deps): bump rate-limit-redis from 4.2.1 to 4.2.2 ([f93e066](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f93e066))
+* chore(deps): bump rate-limit-redis from 4.2.2 to 4.2.3 ([eb7bda7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/eb7bda7))
+* chore(deps): bump rimraf from 6.0.1 to 6.1.0 ([8fb51a0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/8fb51a0))
+* chore(deps): bump tar-fs from 2.1.3 to 2.1.4 ([7151489](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7151489))
+* chore(deps): bump turndown from 7.2.0 to 7.2.1 ([4d9cad0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/4d9cad0))
+* chore(deps): bump turndown from 7.2.1 to 7.2.2 ([26f8bd3](https://github.com/CaoMeiYouRen/rss-impact-server/commit/26f8bd3))
+* chore(deps): bump typeorm from 0.3.25 to 0.3.26 ([73a04fb](https://github.com/CaoMeiYouRen/rss-impact-server/commit/73a04fb))
+* chore(deps): bump typeorm from 0.3.26 to 0.3.27 ([36a30e0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/36a30e0))
+* chore(deps): bump validator from 13.15.15 to 13.15.20 ([a8d8508](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a8d8508))
+* chore(deps): bump vite from 5.4.19 to 5.4.20, add tmp and sha.js dependencies ([4f64e20](https://github.com/CaoMeiYouRen/rss-impact-server/commit/4f64e20))
+* chore(deps): bump winston from 3.17.0 to 3.18.2 ([1012d7b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/1012d7b))
+* chore(deps): bump winston from 3.18.2 to 3.18.3 ([af82d42](https://github.com/CaoMeiYouRen/rss-impact-server/commit/af82d42))
+* chore(deps): update multer to 2.0.2 and add form-data 4.0.4 ([1bbc104](https://github.com/CaoMeiYouRen/rss-impact-server/commit/1bbc104))
+* feat(notification): 添加远程推送功能及相关配置 ([f908651](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f908651))
+* ci: 更新 dependabot 配置为每月调度并添加 GitHub Actions 支持 ([5dc1e4f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5dc1e4f))
+* Merge branch 'master' of github.com:CaoMeiYouRen/rss-impact-server ([06a8696](https://github.com/CaoMeiYouRen/rss-impact-server/commit/06a8696))
+
+# [1.16.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.15.3...v1.16.0) (2025-08-02)
+
+
+### ⏪ 回退
+
+* 回滚 chore(deps): bump connect-redis from 8.1.0 to 9.0.0 ([ab6f462](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ab6f462))
+
+
+### ✨ 新功能
+
+* **auth:** 支持 OIDC 兼容配置，添加动态检测和处理逻辑 ([2424afa](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2424afa))
+* 添加 OIDC 认证支持，更新相关配置和回调处理 ([614963a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/614963a))
+
+
+### 🐛 Bug 修复
+
+* 更新 Auth0 登录重定向 URL 为 BASE_URL ([dd4a5e5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/dd4a5e5))
+
+## [1.15.3](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.15.2...v1.15.3) (2025-06-14)
+
+
+### 🐛 Bug 修复
+
+* 在多个地方添加 enableCircularCheck 和 excludeExtraneousValues 选项以增强数据验证 ([717a5a7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/717a5a7))
+* 添加对 JSON.stringify 结果类型的验证以增强装饰器的健壮性 ([06e13c0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/06e13c0))
+* 移除不必要的 excludeExtraneousValues 选项以简化数据验证配置 ([eb5f4ba](https://github.com/CaoMeiYouRen/rss-impact-server/commit/eb5f4ba))
+
+## [1.15.2](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.15.1...v1.15.2) (2025-05-31)
+
+
+### 🐛 Bug 修复
+
+* **api:** 添加 WxPusher 到支持的消息平台列表 ([6f71718](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6f71718))
+
+## [1.15.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.15.0...v1.15.1) (2025-03-01)
+
+
+### 🐛 Bug 修复
+
+* 更新 push-all-in-one 依赖至 4.3.0，并优化推送类型映射 ([faf36ca](https://github.com/CaoMeiYouRen/rss-impact-server/commit/faf36ca))
+* 添加响应格式配置到 AIConfig 和任务服务 ([89fa9c1](https://github.com/CaoMeiYouRen/rss-impact-server/commit/89fa9c1))
+
+# [1.15.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.14.4...v1.15.0) (2025-01-25)
+
+
+### ✨ 新功能
+
+* **notification:** 添加调试日志以增强推送功能的可追踪性 ([724e7f0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/724e7f0))
+
+## [1.14.4](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.14.3...v1.14.4) (2025-01-11)
+
+
+### ♻ 代码重构
+
+* 优化对 Dingtalk 的 URL 风控处理 ([50f1356](https://github.com/CaoMeiYouRen/rss-impact-server/commit/50f1356))
+
+
+### 🐛 Bug 修复
+
+* 增强对 Markdown 消息类型的支持 ([e626f76](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e626f76))
+
+## [1.14.3](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.14.2...v1.14.3) (2025-01-04)
+
+
+### ♻ 代码重构
+
+* **benchmarks:** 优化系统信息输出格式 ([54c50b1](https://github.com/CaoMeiYouRen/rss-impact-server/commit/54c50b1))
+
+
+### ✅ 测试
+
+* **app:** 修复e2e测试中的app关闭逻辑 ([17ad4ab](https://github.com/CaoMeiYouRen/rss-impact-server/commit/17ad4ab))
+* **e2e:** 优化测试数据库初始化逻辑，改用beforeAll和afterAll ([a5e33ee](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a5e33ee))
+* **e2e:** 初始化测试数据库并启用会话中间件 ([e5d5517](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e5d5517))
+* 修复 API 路径并添加响应头；优化服务逻辑 ([2a4ff2e](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2a4ff2e))
+
+
+### 🐛 Bug 修复
+
+* 更改常量名称从 RESOURCE_SAVE_DAYS 为 ARTICLE_SAVE_DAYS ([f4e1f4f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f4e1f4f))
+
+## [1.14.2](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.14.1...v1.14.2) (2024-12-21)
+
+
+### ♻ 代码重构
+
+* **app:** 优化获取版本和 Git 信息的时机 ([402e00b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/402e00b))
+* **user:** 替换 bcryptjs 为 bcrypt ([8e967e6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/8e967e6))
+
+
+### ✅ 测试
+
+* **e2e:** 优化数据库初始化逻辑 ([785e285](https://github.com/CaoMeiYouRen/rss-impact-server/commit/785e285))
+* **e2e:** 完善 e2e 测试 ([f034a06](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f034a06))
+* **e2e:** 添加测试数据库初始化逻辑；优化测试用例超时时间 ([7963b1a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7963b1a))
+* **e2e:** 禁用会话中间件以测试无状态应用 ([291a582](https://github.com/CaoMeiYouRen/rss-impact-server/commit/291a582))
+* **e2e:** 移除测试数据库初始化代码 ([857dcaf](https://github.com/CaoMeiYouRen/rss-impact-server/commit/857dcaf))
+* 增加测试超时配置和数据库清理；优化 e2e 测试中的数据库初始化和关闭逻辑 ([d18d152](https://github.com/CaoMeiYouRen/rss-impact-server/commit/d18d152))
+
+
+### 🐛 Bug 修复
+
+* **tasks:** 修复删除任务的多条件支持 ([a8ee9be](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a8ee9be))
+* **utils:** 修复 RSS 时间处理逻辑 ([316780d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/316780d))
+* **utils:** 添加 RSS 文章发布时间验证 ([f7a9342](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f7a9342))
+* 优化 移除过时的文章 的性能 ([dfc2450](https://github.com/CaoMeiYouRen/rss-impact-server/commit/dfc2450)), closes [#468](https://github.com/CaoMeiYouRen/rss-impact-server/issues/468)
+
+## [1.14.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.14.0...v1.14.1) (2024-12-14)
+
+
+### 🐛 Bug 修复
+
+* 添加 splat 格式支持；添加 VACUUM 任务日志 ([35b7f53](https://github.com/CaoMeiYouRen/rss-impact-server/commit/35b7f53))
+
+# [1.14.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.13.0...v1.14.0) (2024-12-07)
+
+
+### ✨ 新功能
+
+* update connect-redis to version 8.0.0; update RedisStore import statement ([09f0c4b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/09f0c4b))
+
+# [1.13.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.12.0...v1.13.0) (2024-11-30)
+
+
+### ✨ 新功能
+
+* **db:** add acl crud field to daily count entity ([7b28074](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7b28074))
+
+
+### 🐛 Bug 修复
+
+* **tasks:** 修复每日统计数据更新逻辑 ([f3dbd62](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f3dbd62))
+* 修复每日统计数据更新逻辑；添加 rawDate 字段 ([27b649c](https://github.com/CaoMeiYouRen/rss-impact-server/commit/27b649c))
+
+# [1.12.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.11.0...v1.12.0) (2024-11-23)
+
+
+### ♻ 代码重构
+
+* **daily-count:** 添加新的统计字段 ([3f20077](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3f20077))
+* **db:** 优化 feed 实体的验证逻辑 ([2b5b72e](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2b5b72e))
+* **notification:** 优化通知功能 ([909b049](https://github.com/CaoMeiYouRen/rss-impact-server/commit/909b049))
+* **tasks:** 优化每日统计数据更新逻辑 ([6687504](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6687504))
+* 优化 DISABLE_EMPTY_FEEDS 配置提示 ([355052b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/355052b))
+* 优化 部分情况下 dicData 的查询条数 ([bf81783](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bf81783))
+* 优化分类实体验证逻辑；升级 nodejs 最低版本为 20 ([14f7f58](https://github.com/CaoMeiYouRen/rss-impact-server/commit/14f7f58))
+
+
+### ✨ 新功能
+
+* **daily-count:** 添加重新统计接口；优化每日统计逻辑 ([b051ad4](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b051ad4))
+* 更新 push-all-in-one 版本至 4.1.1；移除不再使用的依赖项；更新接口定义以匹配新版本；优化推送工具函数 ([d689a7f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/d689a7f)), closes [#459](https://github.com/CaoMeiYouRen/rss-impact-server/issues/459)
+
+
+### 🐛 Bug 修复
+
+* **tasks:** 修复每日统计数据更新逻辑 ([65f1d3c](https://github.com/CaoMeiYouRen/rss-impact-server/commit/65f1d3c))
+* 修复 查询全部 的自定义查询会被错误禁用的 bug ([bf1c563](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bf1c563))
+* 修复 禁用空订阅 逻辑错误 ([865a875](https://github.com/CaoMeiYouRen/rss-impact-server/commit/865a875))
+* 修复 禁用空订阅 逻辑错误 ([3a96aef](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3a96aef))
+* 修复 自定义查询为分类时，会错误禁用的问题 ([6b058ed](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6b058ed))
+
+# [1.11.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.10.0...v1.11.0) (2024-11-16)
+
+
+### ♻ 代码重构
+
+* 优化 删除日志和订阅的逻辑 ([264773a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/264773a))
+* 优化 删除过时的文章 为队列 ([dc53047](https://github.com/CaoMeiYouRen/rss-impact-server/commit/dc53047))
+* 优化 部分定时任务触发时间；修改删除文章和日志的逻辑；增加 CQImage 注释 ([5ede09f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5ede09f))
+* 修改 部分定时任务的执行时间 ([ec291ab](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ec291ab))
+
+
+### ✨ 新功能
+
+* 新增 禁用空订阅接口；优化 VACUUM 逻辑；移除部分未使用的代码 ([12b0ed5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/12b0ed5))
+* 新增 默认禁用不包含任何 Hook 和 自定义查询的订阅 ([807ea36](https://github.com/CaoMeiYouRen/rss-impact-server/commit/807ea36)), closes [#467](https://github.com/CaoMeiYouRen/rss-impact-server/issues/467)
+
+# [1.10.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.9.0...v1.10.0) (2024-11-09)
+
+
+### ♻ 代码重构
+
+* 修改 auth0 默认的用户名设定 ([c797d1f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c797d1f))
+* 修改 getConditions 逻辑；修改相关测试用例 ([f767650](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f767650))
+* 新增 git commit hash 输出 ([6f82b22](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6f82b22)), closes [#440](https://github.com/CaoMeiYouRen/rss-impact-server/issues/440)
+* 订阅获取成功时，清空错误计数 ([19c87bc](https://github.com/CaoMeiYouRen/rss-impact-server/commit/19c87bc))
+
+
+### ✨ 新功能
+
+* 新增 最大错误次数 配置，自动禁用错误次数过多的订阅 ([9c59f92](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9c59f92))
+* 新增 构建信息 输出 ([2b26cd4](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2b26cd4))
+
+
+### 🐛 Bug 修复
+
+* 修复 oidc 未初始化时的 logout ([5dad474](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5dad474))
+* 修复 推送时存在多余的换行符的问题 ([383e858](https://github.com/CaoMeiYouRen/rss-impact-server/commit/383e858))
+* 修复 禁用订阅后未移除定时任务的问题 ([bdf728a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bdf728a))
+* 修复 邮箱校验逻辑错误 ([166873e](https://github.com/CaoMeiYouRen/rss-impact-server/commit/166873e))
+* 修复 部分情况不按照 id 排序的问题 ([1045a37](https://github.com/CaoMeiYouRen/rss-impact-server/commit/1045a37))
+
+# [1.9.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.8.0...v1.9.0) (2024-11-02)
+
+
+### ♻ 代码重构
+
+* 优化 user 的 roles 字段的选项 ([f065463](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f065463))
+* 修改 demo 账号的验证逻辑 ([0d0fd5b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/0d0fd5b))
+* 修改 邮箱校验逻辑 ([b7b3928](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b7b3928))
+* 增加 demo 账号，以方便用户体验 ([406e1a6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/406e1a6)), closes [#434](https://github.com/CaoMeiYouRen/rss-impact-server/issues/434)
+* 增加日志压缩、自动删除日志、日志级别设置 ([c3d378b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c3d378b))
+
+
+### ✨ 新功能
+
+* 新增 用户邮箱校验 ([edf3e5d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/edf3e5d))
+
+
+### 🐛 Bug 修复
+
+* 修复 @nestjs/swagger 版本更新导致 nestjs 无法启动的问题 ([6d2faf8](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6d2faf8))
+* 修复 demo 账号的密码过短导致无法登录的问题 ([cafb088](https://github.com/CaoMeiYouRen/rss-impact-server/commit/cafb088))
+* 修复 登出时未处理 oidc 登出的问题 ([3917a3a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3917a3a))
+* 修复 自定义查询 未设置 user 的问题 ([19cf2dd](https://github.com/CaoMeiYouRen/rss-impact-server/commit/19cf2dd))
+* 修复 获取 RSS 时，可能会获取到过时的内容的问题 ([2687afa](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2687afa))
+* 修复 通过  OPML 文件导入的订阅的默认轮询时间错误 ([4ecb328](https://github.com/CaoMeiYouRen/rss-impact-server/commit/4ecb328))
+* 修改通过 docker 部署时的默认跨域配置 ([93137f1](https://github.com/CaoMeiYouRen/rss-impact-server/commit/93137f1))
+
+# [1.8.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.7.0...v1.8.0) (2024-10-26)
+
+
+### ♻ 代码重构
+
+* 前端增加百度统计 ([e78e897](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e78e897))
+* 增加 Server 酱³ 推送 ([d61b929](https://github.com/CaoMeiYouRen/rss-impact-server/commit/d61b929))
+
+
+### ✨ 新功能
+
+* 新增 过滤链接 配置 ([0ebaa81](https://github.com/CaoMeiYouRen/rss-impact-server/commit/0ebaa81))
+
+# [1.7.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.6.1...v1.7.0) (2024-10-19)
+
+
+### ♻ 代码重构
+
+* 优化 auth0 登录时增加 state ([d4afbb3](https://github.com/CaoMeiYouRen/rss-impact-server/commit/d4afbb3))
+* 优化 用户管理和个人信息页面 ([b8b0b49](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b8b0b49))
+* 优化超长文本分割，修复文本断句问题 ([f9dad15](https://github.com/CaoMeiYouRen/rss-impact-server/commit/f9dad15)), closes [#329](https://github.com/CaoMeiYouRen/rss-impact-server/issues/329)
+
+
+### ✨ 新功能
+
+* 增加 auth0 登录/注册 功能 ([e5b3c9a](https://github.com/CaoMeiYouRen/rss-impact-server/commit/e5b3c9a))
+* 增加 禁用账号密码登录/注册 配置项 ([bee55b0](https://github.com/CaoMeiYouRen/rss-impact-server/commit/bee55b0))
+
+
+### 🐛 Bug 修复
+
+* 修复 auth0 未初始化时，nest 启动失败的问题 ([5bed6bf](https://github.com/CaoMeiYouRen/rss-impact-server/commit/5bed6bf))
+* 修复 禁用登录注册的逻辑错误 ([cedf805](https://github.com/CaoMeiYouRen/rss-impact-server/commit/cedf805))
+* 修复 缺少 Auth0 配置字段的问题 ([b8fd5f5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b8fd5f5))
+
+## [1.6.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.6.0...v1.6.1) (2024-10-12)
+
+
+### ♻ 代码重构
+
+* 优化 Origin 的判断 ([62cac73](https://github.com/CaoMeiYouRen/rss-impact-server/commit/62cac73))
+* 暂时移除 helmet ([3949bb7](https://github.com/CaoMeiYouRen/rss-impact-server/commit/3949bb7))
+
+
+### 🐛 Bug 修复
+
+* 修复 cookie 设置问题 ([9612940](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9612940))
+* 修复 跨域请求头中包含未允许的字段 ([7ea2c5c](https://github.com/CaoMeiYouRen/rss-impact-server/commit/7ea2c5c))
+* 修复 部分情况下 cookie 无法跨域的问题 ([326f0f5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/326f0f5))
+
+# [1.6.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.3...v1.6.0) (2024-10-05)
+
+
+### ♻ 代码重构
+
+* 增加 CronJob 配置环境变量 ([c10e961](https://github.com/CaoMeiYouRen/rss-impact-server/commit/c10e961))
+
+
+### ✨ 新功能
+
+* 新增 Sentry 配置 ([2b58003](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2b58003))
+
+
+### 🐛 Bug 修复
+
+* 修复 部分情况下缺少 Origin 判断的问题 ([9329912](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9329912))
+
+## [1.5.3](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.2...v1.5.3) (2024-09-28)
+
+
+### 🐛 Bug 修复
+
+* 修复 Article 的 enclosureLength 字段类型改为 bigint，最大值调整为 Number.MAX_SAFE_INTEGER ([b9f1b3f](https://github.com/CaoMeiYouRen/rss-impact-server/commit/b9f1b3f))
+* 修复 附件大小的范围过小的问题 ([6ca85eb](https://github.com/CaoMeiYouRen/rss-impact-server/commit/6ca85eb)), closes [#357](https://github.com/CaoMeiYouRen/rss-impact-server/issues/357)
+
+## [1.5.2](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.1...v1.5.2) (2024-09-21)
+
+
+### ♻ 代码重构
+
+* 优化 全文抓取失败的逻辑 ([606ee66](https://github.com/CaoMeiYouRen/rss-impact-server/commit/606ee66)), closes [#325](https://github.com/CaoMeiYouRen/rss-impact-server/issues/325)
+* 优化 单个订阅增加最大文章数量限制 ([db9a73b](https://github.com/CaoMeiYouRen/rss-impact-server/commit/db9a73b)), closes [#324](https://github.com/CaoMeiYouRen/rss-impact-server/issues/324)
+* 增加 手动调用 sqlite VACUUM 命令的接口 ([893d080](https://github.com/CaoMeiYouRen/rss-impact-server/commit/893d080))
+* 添加 数据库查询日志 ([9cd6842](https://github.com/CaoMeiYouRen/rss-impact-server/commit/9cd6842))
+* 重构 修改查询数据库信息逻辑，改为使用 TypeORM DataSource ([87980be](https://github.com/CaoMeiYouRen/rss-impact-server/commit/87980be))
+
+
+### 🐛 Bug 修复
+
+* 修复 sqlite 不会自动释放未使用的空间的 bug；重构 sqlite 查询和执行相关逻辑 ([0cbb286](https://github.com/CaoMeiYouRen/rss-impact-server/commit/0cbb286))
+* 修复 删除超过限制的文章数量逻辑错误的 bug ([2f9e131](https://github.com/CaoMeiYouRen/rss-impact-server/commit/2f9e131))
+* 修复 在非严格模式下，Cookie 无法跨域的问题 ([12a945d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/12a945d)), closes [#334](https://github.com/CaoMeiYouRen/rss-impact-server/issues/334)
+* 修复 字符编码为 utf8mb4 时，MySQL 无法创建索引的问题；更新了 MySQL 相关文档 ([a64fbd5](https://github.com/CaoMeiYouRen/rss-impact-server/commit/a64fbd5))
+* 修复 队列中存在未捕获的错误 ([fd77a71](https://github.com/CaoMeiYouRen/rss-impact-server/commit/fd77a71)), closes [#312](https://github.com/CaoMeiYouRen/rss-impact-server/issues/312)
+
+## [1.5.1](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.5.0...v1.5.1) (2024-09-14)
+
+
+### ♻ 代码重构
+
+* 优化 增加了 SSL 连接选项 ([15538a6](https://github.com/CaoMeiYouRen/rss-impact-server/commit/15538a6))
+* 回退 postgres 的 id 为 integer 类型 ([ea0153d](https://github.com/CaoMeiYouRen/rss-impact-server/commit/ea0153d))
+* 重构 TasksService 和 helper；更新 订阅 队列逻辑；增加 Hook 队列执行优先级 ([91b8c46](https://github.com/CaoMeiYouRen/rss-impact-server/commit/91b8c46))
+* 重构 删除 Base 实体中的不必要的日志；将 TasksService 中的 setTimeout 更改为 bitTorrentQueue ([156b363](https://github.com/CaoMeiYouRen/rss-impact-server/commit/156b363))
+* 重构 队列增加超时时间；bitTorrentHook 增加优先级设置 ([07bed83](https://github.com/CaoMeiYouRen/rss-impact-server/commit/07bed83))
+
+
+### 🐛 Bug 修复
+
+* 修复 Resource 部分字段不能为 null 的 bug ([542c5ec](https://github.com/CaoMeiYouRen/rss-impact-server/commit/542c5ec))
+* 处理部分情况下，postgres 数据库的兼容性问题；更新文档 ([059b2a4](https://github.com/CaoMeiYouRen/rss-impact-server/commit/059b2a4))
+
 # [1.5.0](https://github.com/CaoMeiYouRen/rss-impact-server/compare/v1.4.2...v1.5.0) (2024-09-07)
 
 

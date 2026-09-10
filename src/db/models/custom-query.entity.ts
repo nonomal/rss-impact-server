@@ -2,6 +2,7 @@ import { AfterLoad, BeforeInsert, Entity, JoinTable, ManyToMany } from 'typeorm'
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger'
 import { IsObject, ValidateNested, IsIn, IsArray, IsBoolean, IsOptional } from 'class-validator'
 import { Type } from 'class-transformer'
+import _ from 'lodash'
 import { AclBase } from './acl-base.entity'
 import { Feed } from './feed.entity'
 import { Category } from './category.entity'
@@ -24,6 +25,7 @@ import { CustomColumn } from '@/decorators/custom-column.decorator'
  */
 @Entity()
 export class CustomQuery extends AclBase {
+
     @SetAclCrudField({
         search: true,
     })
@@ -57,35 +59,13 @@ export class CustomQuery extends AclBase {
             value: 'id',
         },
     })
-    @ApiProperty({ title: '指定分类', description: '支持选择多个分类', example: [], type: [Category] })
+    @ApiProperty({ title: '指定分类', description: '支持选择多个分类', example: [], type: () => [Category] })
     @Type(() => Category)
     @IsArray()
     @IsOptional()
-    @ManyToMany(() => Category)
+    @ManyToMany(() => Category, (category) => category.customQueries)
     @JoinTable()
     categories?: Category[]
-
-    // @SetAclCrudField({
-    //     type: 'select',
-    //     dicUrl: '/feed/dicData',
-    //     props: {
-    //         label: 'title',
-    //         value: 'id',
-    //     },
-    //     value: null,
-    //     hide: true,
-    // })
-    // @ApiProperty({ title: '指定订阅', description: '注意：订阅的查询是单选的', example: 1 })
-    // @IsId()
-    // @CustomColumn({ nullable: true })
-    // feedId?: number
-
-    // @SetAclCrudField({
-    //     hide: true,
-    // })
-    // @ApiProperty({ title: '订阅源', type: () => Feed })
-    // @ManyToOne(() => Feed)
-    // feed?: Feed
 
     @SetAclCrudField({
         type: 'select',
@@ -96,11 +76,11 @@ export class CustomQuery extends AclBase {
             value: 'id',
         },
     })
-    @ApiProperty({ title: '指定订阅', description: '支持选择多个订阅', example: [], type: [Feed] })
+    @ApiProperty({ title: '指定订阅', description: '支持选择多个订阅', example: [], type: () => [Feed] })
     @Type(() => Feed)
     @IsArray()
     @IsOptional()
-    @ManyToMany(() => Feed)
+    @ManyToMany(() => Feed, (feed) => feed.customQueries)
     @JoinTable()
     feeds?: Feed[]
 
@@ -169,7 +149,9 @@ export class CustomQuery extends AclBase {
 
     @AfterLoad() // 生成输出 url
     private updateUrl() {
-        this.url = new URL(`${BASE_URL}/api/custom-query/rss/${this.id}?key=${this.key}`, BASE_URL).toString()
+        if (!_.isNil(this.key)) {
+            this.url = new URL(`${BASE_URL}/api/custom-query/rss/${this.id}?key=${this.key}`, BASE_URL).toString()
+        }
     }
 
     @SetAclCrudField({
@@ -197,6 +179,7 @@ export class CustomQuery extends AclBase {
         default: '{}',
     })
     filterout: FilterOut
+
 }
 
 export class CreateCustomQuery extends OmitType(CustomQuery, ['id', 'createdAt', 'updatedAt', 'key'] as const) { }
@@ -204,6 +187,8 @@ export class CreateCustomQuery extends OmitType(CustomQuery, ['id', 'createdAt',
 export class UpdateCustomQuery extends PartialType(OmitType(CustomQuery, ['createdAt', 'updatedAt', 'key'] as const)) { }
 
 export class FindCustomQuery extends FindPlaceholderDto<CustomQuery> {
+
     @ApiProperty({ type: () => [CustomQuery] })
     declare data: CustomQuery[]
+
 }

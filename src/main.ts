@@ -1,18 +1,18 @@
 // eslint-disable-next-line import/order
-import { CI, ENABLE_ORIGIN_LIST, PORT, RESOURCE_DOWNLOAD_PATH, __BENCHMARKS_TEST__, __DEV__ } from './app.config'
+import { CI, ENABLE_AUTH0, ENABLE_ORIGIN_LIST, PORT, RESOURCE_DOWNLOAD_PATH, SESSION_SECRET, __BENCHMARKS_TEST__, __DEV__ } from './app.config'
 import path from 'path'
-import moduleAlias from 'module-alias'
-moduleAlias.addAlias('@', path.join(__dirname, './'))
+import moduleAlias = require('module-alias')
+import './utils/sentry'
 import { NestFactory } from '@nestjs/core'
 import { SwaggerModule, DocumentBuilder, SwaggerDocumentOptions } from '@nestjs/swagger'
 import { NestExpressApplication } from '@nestjs/platform-express'
-import helmet from 'helmet'
 import { ValidationPipe } from '@nestjs/common'
 import history from 'connect-history-api-fallback'
 import fs from 'fs-extra'
-import artTemplate from 'art-template'
 import ms from 'ms'
 import { Request } from 'express'
+import cookieParser from 'cookie-parser'
+import { getGitInfo } from './utils/git-info'
 import { setRequestId } from './middlewares/request.middleware'
 import { sessionMiddleware } from './middlewares/session.middleware'
 import { jsonLogger, logger } from './middlewares/logger.middleware'
@@ -22,7 +22,7 @@ import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { AppModule } from './app.module'
 import { DATABASE_DIR } from './db/database.module'
 
-artTemplate.defaults.onerror = (error) => logger.error(error)
+moduleAlias.addAlias('@', path.join(__dirname, './'))
 
 async function bootstrap() {
     if (!await fs.pathExists(DATABASE_DIR)) {
@@ -41,11 +41,13 @@ async function bootstrap() {
             cb(null, {})
             return
         }
-        const enableOrigin = ENABLE_ORIGIN_LIST.includes(req.header('Origin'))
+
+        const origin = req.header('Origin') || `${req.protocol}://${req.hostname}`
+        const enableOrigin = ENABLE_ORIGIN_LIST.some((url) => url.startsWith(origin))
         cb(null, {
-            origin: enableOrigin,
-            methods: ['GET', 'PUT', 'POST', 'DELETE'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
+            origin: enableOrigin && origin,
+            methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie', 'Accept', 'Accept-Language', 'Content-Language', 'Sentry-Trace', 'Baggage'],
             credentials: enableOrigin, // 本项目中还需要启用 cookie
         })
     })
@@ -75,8 +77,7 @@ async function bootstrap() {
         app.use(setRequestId)
         app.use(jsonLogger)
     }
-    app.use(helmet({}))
-    // app.use(consoleLogger)
+    // app.use(helmet({}))
     app.useGlobalFilters(new AllExceptionsFilter())
     app.useGlobalInterceptors(new TimeoutInterceptor())
     app.useGlobalPipes(new ValidationPipe({
@@ -87,8 +88,10 @@ async function bootstrap() {
         // forbidNonWhitelisted: true,
         enableDebugMessages: __DEV__,
     }))
+    if (SESSION_SECRET) {
+        app.use(cookieParser(SESSION_SECRET))
+    }
     app.use(sessionMiddleware)
-
     app.use(history({
         rewrites: [
             // 匹配 /api 开头的路由,不进行回退
@@ -101,13 +104,34 @@ async function bootstrap() {
         ],
         htmlAcceptHeaders: ['text/html', 'application/xhtml+xml'],
     })) // 解决单页应用程序(SPA)重定向问题
+    if (ENABLE_AUTH0) {
+        // 使用动态 import，否则 auth.middleware 未初始化会导致 Nest 启动失败
+        const { createAuthMiddleware, authMiddleware } = await import('./middlewares/auth.middleware')
+
+        // 尝试使用自动检测的中间件，如果失败则使用默认配置
+        try {
+            const dynamicAuthMiddleware = await createAuthMiddleware()
+            app.use(dynamicAuthMiddleware)
+            logger.log('使用动态检测的 OIDC 配置')
+        } catch (error) {
+            logger.warn('动态 OIDC 配置失败，使用默认配置:', error.message)
+            if (authMiddleware) {
+                app.use(authMiddleware)
+                logger.log('使用默认 OIDC 配置')
+            } else {
+                logger.error('无法初始化 OIDC 中间件：缺少必要的配置')
+            }
+        }
+    }
 
     await app.listen(PORT)
-
     logger.log(`应用访问地址为 http://127.0.0.1:${PORT}`)
     if (__DEV__) {
         logger.debug(`Docs http://127.0.0.1:${PORT}/docs`)
     }
+    const { version } = await fs.readJson('package.json')
+    const { gitHash, gitDate } = await getGitInfo()
+    logger.log(`当前 RSS Impact server 版本为：${version}，构建哈希为：${gitHash}，构建时间为：${gitDate}`)
 
     if (CI && __BENCHMARKS_TEST__) {
         setTimeout(() => {

@@ -1,11 +1,12 @@
 import path from 'path'
-import { Global, Module } from '@nestjs/common'
-import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm'
+import { Global, Module, Injectable, type OnModuleInit } from '@nestjs/common'
+import { TypeOrmModule, TypeOrmModuleOptions, InjectDataSource } from '@nestjs/typeorm'
 import ms from 'ms'
 import fs from 'fs-extra'
 import { MysqlConnectionOptions } from 'typeorm/driver/mysql/MysqlConnectionOptions'
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions'
-import { SqliteConnectionOptions } from 'typeorm/driver/sqlite/SqliteConnectionOptions'
+import { BetterSqlite3ConnectionOptions } from 'typeorm/driver/better-sqlite3/BetterSqlite3ConnectionOptions'
+import { DataSource } from 'typeorm'
 import { User } from './models/user.entity'
 import { Feed } from './models/feed.entity'
 import { Category } from './models/category.entity'
@@ -16,13 +17,48 @@ import { WebhookLog } from './models/webhook-log.entity'
 import { ProxyConfig } from './models/proxy-config.entity'
 import { CustomQuery } from './models/custom-query.entity'
 import { DailyCount } from './models/daily-count.entity'
-import { __DEV__, __TEST__, DATA_PATH, DATABASE_CHARSET, DATABASE_DATABASE, DATABASE_HOST, DATABASE_PASSWORD, DATABASE_PORT, DATABASE_SCHEMA, DATABASE_SSL, DATABASE_TIMEZONE, DATABASE_TYPE, DATABASE_USERNAME } from '@/app.config'
+import { __DEV__, __TEST__, DATA_PATH, DATABASE_CHARSET, DATABASE_DATABASE, DATABASE_HOST, DATABASE_PASSWORD, DATABASE_PORT, DATABASE_SCHEMA, DATABASE_SSL, DATABASE_SYNCHRONIZE, DATABASE_TIMEZONE, DATABASE_TYPE, DATABASE_USERNAME } from '@/app.config'
+import { CustomLogger, winstonLogger } from '@/middlewares/logger.middleware'
+
+type SqliteDatabase = { pragma: (sql: string) => void }
+
+@Injectable()
+export class SqlitePragmaService implements OnModuleInit {
+
+    constructor(@InjectDataSource() private dataSource: DataSource) { }
+
+    onModuleInit() {
+        if (this.dataSource.options.type !== 'better-sqlite3') {
+            return
+        }
+        try {
+            const db = (this.dataSource.driver as any).databaseConnection as SqliteDatabase
+
+            // 关键修复：Docker bind mount 文件系统对 POSIX 锁支持不可靠。
+            // WAL 模式减少对文件锁的依赖，synchronous=NORMAL 避免在慢文件系统上超时。
+            // 如果 WAL 模式初始化失败（极少数文件系统不支持），回退 DELETE + busy_timeout。
+            try {
+                db.pragma('journal_mode = WAL')
+            } catch {
+                winstonLogger.warn?.('WAL 模式设置失败，使用 DELETE + busy_timeout 作为回退')
+                db.pragma('journal_mode = DELETE')
+            }
+            db.pragma('synchronous = NORMAL')
+            db.pragma('busy_timeout = 5000')
+
+            winstonLogger.log?.('SQLite PRAGMA 配置完成: journal_mode 已应用, synchronous=NORMAL, busy_timeout=5000')
+        } catch {
+            winstonLogger.warn?.('SQLite PRAGMA 设置失败，连接可能已处于异常状态')
+        }
+    }
+
+}
 
 export const DATABASE_DIR = DATA_PATH
 
-export const DATABASE_PATH = __TEST__ ?
-    path.join(DATABASE_DIR, 'database.test.sqlite') :
-    path.join(DATABASE_DIR, 'database.sqlite')
+export const DATABASE_PATH = __TEST__
+    ? path.join(DATABASE_DIR, 'database.test.sqlite')
+    : path.join(DATABASE_DIR, 'database.sqlite')
 export const entities = [User, Feed, Category, Article, Hook, Resource, WebhookLog, ProxyConfig, CustomQuery, DailyCount]
 
 const lockFilePath = path.join(DATABASE_DIR, 'database.lock.json')
@@ -44,12 +80,19 @@ const SUPPORTED_DATABASE_TYPES = ['sqlite', 'mysql', 'postgres']
                 let synchronize: boolean = false
                 switch (DATABASE_TYPE) {
                     case 'sqlite': {
-                        options = { database: DATABASE_PATH } as SqliteConnectionOptions //  数据库路径。
-                        synchronize = true // 在数据库为 sqlite 的时候固定同步
+                        options = {
+                            type: 'better-sqlite3',
+                            database: DATABASE_PATH,
+                        } as BetterSqlite3ConnectionOptions as any //  数据库路径。
+                        // sqlite 在生产环境下默认不做 schema synchronize，避免每次启动都执行 DROP/ALTER。
+                        // 首次启动(数据库文件不存在)仍会自动建表，开发/测试环境维持自动同步。
+                        const dbFileExists = await fs.pathExists(DATABASE_PATH)
+                        synchronize = DATABASE_SYNCHRONIZE ?? (__DEV__ || __TEST__ || !dbFileExists)
                         break
                     }
                     case 'mysql': {
                         options = {
+                            type: 'mysql',
                             host: DATABASE_HOST,
                             port: DATABASE_PORT,
                             username: DATABASE_USERNAME,
@@ -57,11 +100,15 @@ const SUPPORTED_DATABASE_TYPES = ['sqlite', 'mysql', 'postgres']
                             database: DATABASE_DATABASE,
                             charset: DATABASE_CHARSET, // 连接的字符集。
                             timezone: DATABASE_TIMEZONE,
-                            connectTimeout: ms('60 s'), // 在连接到 MySQL 服务器期间发生超时之前的毫秒数
+                            connectTimeout: ms('120 s'), // 在连接到 MySQL 服务器期间发生超时之前的毫秒数
                             // debug: __DEV__,
                             supportBigNumbers: true, // 处理数据库中的大数字
                             bigNumberStrings: false, // 仅当它们无法用 JavaScript Number 对象准确表示时才会返回大数字作为 String 对象
-                            ssl: DATABASE_SSL,
+                            ssl: DATABASE_SSL
+                                ? {
+                                    rejectUnauthorized: false,
+                                }
+                                : undefined,
                         } as MysqlConnectionOptions
                         // mysql 仅在第一次加载时同步，否则会丢失数据
                         if (!await fs.pathExists(lockFilePath)) {
@@ -75,6 +122,7 @@ const SUPPORTED_DATABASE_TYPES = ['sqlite', 'mysql', 'postgres']
                     }
                     case 'postgres': {
                         options = {
+                            type: 'postgres',
                             host: DATABASE_HOST,
                             port: DATABASE_PORT,
                             username: DATABASE_USERNAME,
@@ -83,6 +131,7 @@ const SUPPORTED_DATABASE_TYPES = ['sqlite', 'mysql', 'postgres']
                             schema: DATABASE_SCHEMA,
                             parseInt8: true, // 解析 int8 到 number
                             ssl: DATABASE_SSL,
+                            connectTimeoutMS: ms('120 s'), // 在连接到 postgres 服务器期间发生超时之前的毫秒数
                             // logNotifications: __DEV__,
                         } as PostgresConnectionOptions
                         // postgres 仅在第一次加载时同步，否则会丢失数据
@@ -98,10 +147,13 @@ const SUPPORTED_DATABASE_TYPES = ['sqlite', 'mysql', 'postgres']
                     default:
                         break
                 }
-
                 return {
                     ...options,
-                    type: DATABASE_TYPE as any,
+                    // logging: __DEV__ || ['error', 'warn'], // 是否启用日志记录
+                    logger: new CustomLogger(winstonLogger),
+                    // loggerLevel: __DEV__ ? 'debug' : 'warn',
+                    maxQueryExecutionTime: 3000, // 记录耗时长的查询
+                    // type: DATABASE_TYPE as any,
                     entities,
                     synchronize,
                     autoLoadEntities: true,
@@ -111,6 +163,6 @@ const SUPPORTED_DATABASE_TYPES = ['sqlite', 'mysql', 'postgres']
         repositories,
     ],
     exports: [repositories],
+    providers: [SqlitePragmaService],
 })
 export class DatabaseModule { }
-

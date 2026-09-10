@@ -26,9 +26,9 @@ import { AclOptions } from '@/decorators/acl-crud.decorator'
 import { isId } from '@/decorators/is-id.decorator'
 import { FindPlaceholderDto } from '@/models/find-placeholder.dto'
 import { AvueCrudConfig, DicData } from '@/models/avue.dto'
-import { transformQueryOperator } from '@/utils/helper'
 
 export class ICrudQuery implements CrudRouteForFind {
+
     /**
      * 查询条件
      */
@@ -55,6 +55,7 @@ export class ICrudQuery implements CrudRouteForFind {
      * 要关联其他表关系的字段
      */
     relations?: string[]
+
 }
 
 export const CrudQuery = createParamDecorator((name, ctx: ExecutionContext) => {
@@ -99,7 +100,7 @@ export class AclCrudController {
         }
         return {
             option: {
-                ...option,  // 非 admin 用户不显示 useId
+                ...option, // 非 admin 用户不显示 useId
                 column: option.column.filter((col) => col.prop !== 'userId'),
             },
         }
@@ -113,11 +114,12 @@ export class AclCrudController {
         }
         const {
             page = 1,
+            where = {},
         } = query
-        let { limit = 1000, skip = 0 } = query
+        let { limit = user?.roles?.includes(Role.admin) ? 10000 : 1000, skip = 0 } = query
         limit = user?.roles?.includes(Role.admin) ? limit : Math.min(limit, PAGE_LIMIT_MAX)
         skip = skip || (page - 1) * limit
-        const conditions = getConditions(user)
+        const conditions = getConditions(user, where)
         const data = await this.repository.find({
             where: {
                 ...conditions,
@@ -125,6 +127,7 @@ export class AclCrudController {
             skip,
             take: limit,
             order: {
+                id: 'DESC',
                 createdAt: 'DESC',
             },
             select: [this?.__OPTIONS__?.props?.label, this?.__OPTIONS__?.props?.value] as any[],
@@ -151,17 +154,17 @@ export class AclCrudController {
         let { limit = 10, skip = 0 } = query
         limit = user?.roles?.includes(Role.admin) ? limit : Math.min(limit, PAGE_LIMIT_MAX)
         skip = skip || (page - 1) * limit
-        const conditions = getConditions(user)
+        const conditions = getConditions(user, where)
         __DEV__ && this.logger.debug(query)
         const [data, total] = await this.repository.findAndCount({
             where: {
-                ...transformQueryOperator(where),
                 ...conditions,
             },
             skip,
             take: limit,
             order: merge({
-                createdAt: 'DESC',
+                // id: 'DESC',
+                // createdAt: 'DESC',
             }, this?.__OPTIONS__?.order, sort),
             relations: uniq([...relations, ...this?.__OPTIONS__?.relations || []]),
             select: uniq([...this?.__OPTIONS__?.select || []]) as any,
@@ -202,8 +205,8 @@ export class AclCrudController {
     async create(@Body() body: CrudPlaceholderDto, @CurrentUser() user: User) {
         __DEV__ && this.logger.debug(JSON.stringify(body, null, 4))
 
-        delete body.user  // 以 userId 字段为准
-        body.userId = user.id  // 以 userId 字段为准
+        delete body.user // 以 userId 字段为准
+        body.userId = user.id // 以 userId 字段为准
         if (body.id) {
             delete body.id
         }
@@ -223,7 +226,7 @@ export class AclCrudController {
     async update(@Body() body: CrudPlaceholderDto, @CurrentUser() user: User) {
         __DEV__ && this.logger.debug(JSON.stringify(body, null, 4))
         const id = body.id
-        delete body.user  // 以 userId 字段为准
+        delete body.user // 以 userId 字段为准
         if (!body.userId) {
             body.userId = user.id
         }
@@ -279,4 +282,5 @@ export class AclCrudController {
         //     throw new HttpError(500, '删除记录失败')
         // }
     }
+
 }

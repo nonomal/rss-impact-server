@@ -9,36 +9,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: "latest"
+          version: "11"
       - name: Setup Node.js@lts environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: "22"
           cache: "pnpm"
-      - name: Cache Dependency
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            ~/.yarn
-            ~/.cache/pnpm
-            ~/cache
-            !~/cache/exclude
-            **/node_modules
-          key: pnpm-${{ runner.os }}-${{ hashFiles('package.json') }}
-          restore-keys: pnpm-${{ runner.os }}
       - run: pnpm i --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run lint:md
+      - run: pnpm run typecheck
       - run: pnpm run build
       - run: pnpm run test
       - run: pnpm run test:e2e
       - run: pnpm run test:cov
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

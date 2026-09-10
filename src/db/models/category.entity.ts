@@ -1,8 +1,10 @@
-import { Entity, OneToMany } from 'typeorm'
+import { Entity, ManyToMany, OneToMany } from 'typeorm'
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger'
-import { IsNotEmpty } from 'class-validator'
+import { IsArray, IsNotEmpty, IsOptional } from 'class-validator'
+import { Type } from 'class-transformer'
 import { AclBase } from './acl-base.entity'
 import { Feed } from './feed.entity'
+import { CustomQuery } from './custom-query.entity'
 import { FindPlaceholderDto } from '@/models/find-placeholder.dto'
 import { SetAclCrudField } from '@/decorators/set-acl-crud-field.decorator'
 import { CustomColumn } from '@/decorators/custom-column.decorator'
@@ -49,8 +51,25 @@ export class Category extends AclBase {
         },
     })
     @ApiProperty({ title: '订阅链接', example: [], type: () => [Feed] })
+    @IsOptional()
     @OneToMany(() => Feed, (feed) => feed.category)
     feeds: Feed[]
+
+    @SetAclCrudField({
+        type: 'select',
+        multiple: true,
+        dicUrl: '/custom-query/dicData',
+        props: {
+            label: 'name',
+            value: 'id',
+        },
+    })
+    @ApiProperty({ title: '自定义查询列表', example: [], type: () => [CustomQuery] })
+    @Type(() => CustomQuery)
+    @IsArray()
+    @IsOptional()
+    @ManyToMany(() => CustomQuery, (customQuery) => customQuery.categories) // JoinTable 在 CustomQuery 这边
+    customQueries: CustomQuery[]
 
 }
 
@@ -59,6 +78,8 @@ export class CreateCategory extends OmitType(Category, ['id', 'createdAt', 'upda
 export class UpdateCategory extends PartialType(OmitType(Category, ['createdAt', 'updatedAt'] as const)) { }
 
 export class FindCategory extends FindPlaceholderDto<Category> {
+
     @ApiProperty({ type: () => [Category] })
     declare data: Category[]
+
 }

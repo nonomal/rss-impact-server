@@ -5,7 +5,6 @@ import timezone from 'dayjs/plugin/timezone'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import _, { random } from 'lodash'
 import fs, { ReadStream } from 'fs-extra'
-import FileType from 'file-type'
 import Turndown from 'turndown'
 import { Equal, Like, ILike, Between, In } from 'typeorm'
 import { ValidationError } from 'class-validator'
@@ -15,8 +14,10 @@ import * as betterBytes from 'better-bytes'
 import ms from 'ms'
 import PostlightParser from '@cao-mei-you-ren/postlight_parser'
 import { decodeXML } from 'entities'
+import { JwksClient } from 'jwks-rsa'
+import * as jwt from 'jsonwebtoken'
 import { ajax } from './ajax'
-import { TZ } from '@/app.config'
+import { ALLOWED_EMAIL_DOMAINS, AUTH0_ISSUER_BASE_URL, TZ } from '@/app.config'
 // TODO 考虑支持国际化
 import 'dayjs/locale/zh-cn'
 
@@ -156,7 +157,7 @@ export function deepTrim(obj: any) {
     return obj
 }
 
-type DownloadFileType = {
+interface DownloadFileType {
     size: number
     type: string
     hash: string
@@ -179,7 +180,8 @@ export async function download(url: string, filepath: string, timeout = 60 * 100
     return new Promise<DownloadFileType>((resolve, reject) => {
         writer.on('finish', async () => {
             const stat = await fs.stat(filepath)
-            const mime = (await FileType.fromFile(filepath))?.mime
+            const { fileTypeFromFile } = await import('file-type')
+            const mime = (await fileTypeFromFile(filepath))?.mime
             const hash = await getMd5ByStream(filepath)
             resolve({
                 size: stat.size,
@@ -309,7 +311,6 @@ export function flattenValidationErrors(
             .filter((item) => !!item.constraints)
             .map((item) => Object.values(item.constraints)),
     )
-
 }
 
 function mapChildrenToValidationErrors(
@@ -359,7 +360,7 @@ export function mdToCqcode(md: string) {
     result = result.replaceAll('\\[', '&#91;').replaceAll('\\]', '&#93;')
     // 需要反转义 markdown 字符
     result = unescapeMarkdown(result)
-    // CQImage 禁用缓存，否则 onebot-mirai 插件会发送失败
+    // CQImage 禁用缓存，否则，如果 onebot 未启用缓存的话，onebot-mirai 插件会发送失败
     result = result.replace(imageRegex, (match, altText, imageUrl) => new CQImage('image', { file: imageUrl, cache: 0 }).toString())
     // 如果两个 url 相同，则只保留一个
     result = result.replace(urlRegex, (match, u1, u2) => (u1 === u2 ? u1 : match))
@@ -393,7 +394,7 @@ export function parseDataSize(data: number | string): number {
     return Number(betterBytes.parse(data))
 }
 
-type RetryBackoffConfig = {
+interface RetryBackoffConfig {
     /**
      * 最大重试次数
      */
@@ -440,7 +441,7 @@ export async function retryBackoff<T = void>(cb: () => T | Promise<T>, config: R
             const interval = Math.max(10, initialInterval) // 不小于 10 毫秒
             const delayed = interval * 2 ** currentRetries // 2 的 currentRetries 次方
             if (delayed >= maxInterval) {
-                throw new Error(`函数 ${cb.name} 重试次数已达到重试间隔 ${maxInterval} 次！`, { cause: err })
+                throw new Error(`函数 ${cb.name} 重试次数已达到重试间隔 ${maxInterval} 毫秒！`, { cause: err })
             }
             await sleep(delayed) // 等待重试
         }
@@ -466,6 +467,54 @@ export function splitString(str: string, maxLength: number): string[] {
         chunks.push(str.slice(start, start + maxLength))
         start += maxLength
     }
+    return chunks
+}
+
+/**
+ * 辅助函数，将字符串分割为指定长度的块，考虑换行符
+ *
+ * @author CaoMeiYouRen
+ * @date 2024-10-17
+ * @export
+ * @param str
+ * @param maxLength
+ */
+export function splitStringWithLineBreak(str: string, maxLength: number): string[] {
+    if (maxLength <= 0 || !str?.length) {
+        return [str] // 如果 maxLength 为 0 或负数,或者输入字符串为空,返回包含原始字符串的数组
+    }
+
+    const chunks: string[] = []
+    let start = 0
+
+    while (start < str.length) {
+        let end = start + maxLength
+
+        // 检查是否在 maxLength 处有换行符
+        if (end < str.length && str[end] !== '\n') {
+            // 查找最近的换行符
+            const lastLineBreak = str.lastIndexOf('\n', end)
+            if (lastLineBreak > start) {
+                end = lastLineBreak + 1 // 包含换行符
+            } else {
+                // 如果没有找到换行符，则查找下一个换行符
+                const nextLineBreak = str.indexOf('\n', end)
+                if (nextLineBreak !== -1) {
+                    end = nextLineBreak + 1 // 包含换行符
+                }
+            }
+        }
+
+        // 如果 end 超过了字符串长度，则调整到字符串末尾
+        if (end > str.length) {
+            end = str.length
+        }
+
+        // 将当前块添加到 chunks 中
+        chunks.push(str.slice(start, end))
+        start = end
+    }
+
     return chunks
 }
 
@@ -587,19 +636,19 @@ export function timeFromNow(time: number) {
     return `${time.toFixed(2)} days`
 }
 
-type FullText = {
-    title?: string | null      // 文章标题
-    content?: string | null    // 文章主要内容
-    author?: string | null     // 文章作者
+interface FullText {
+    title?: string | null // 文章标题
+    content?: string | null // 文章主要内容
+    author?: string | null // 文章作者
     date_published?: string | null // 文章发布日期
     lead_image_url?: string | null // 文章主要图片的 URL
-    dek?: string | null        // 文章的短描述(dek)
+    dek?: string | null // 文章的短描述(dek)
     next_page_url?: string | null // 文章下一页的 URL
-    url?: string | null        // 文章的 URL
-    domain?: string | null     // 文章 URL 的域名
-    excerpt?: string | null    // 文章的摘要或简介
+    url?: string | null // 文章的 URL
+    domain?: string | null // 文章 URL 的域名
+    excerpt?: string | null // 文章的摘要或简介
     word_count?: number | null // 文章的总字数
-    direction?: string | null  // 文章的文本方向(如"ltr"表示从左到右)
+    direction?: string | null // 文章的文本方向(如"ltr"表示从左到右)
     total_pages?: number | null // 文章的总页数
     rendered_pages?: number | null // 实际渲染的页数
 }
@@ -679,4 +728,102 @@ export function unescapeMarkdown(text: string) {
     }
 
     return text.replace(/\\[`*_#\\[\]()!{}|<>&]|&lt;|&gt;|&amp;/g, (match) => unescapeChars[match])
+}
+
+let jwksClient: JwksClient | null = null
+if (AUTH0_ISSUER_BASE_URL) {
+    jwksClient = new JwksClient({
+        jwksUri: `${AUTH0_ISSUER_BASE_URL}/.well-known/jwks.json`,
+    })
+}
+
+export async function getSigningKey(kid: string): Promise<string> {
+    if (!jwksClient) {
+        throw new Error('jwksClient is not initialized')
+    }
+    const key = await jwksClient.getSigningKey(kid)
+    return key.getPublicKey()
+}
+
+/**
+ *
+ * 校验 auth0 jwt
+ * @author CaoMeiYouRen
+ * @date 2024-10-14
+ * @export
+ * @param token
+ */
+export async function validateJwt(token: string): Promise<any> {
+    if (!jwksClient) {
+        throw new Error('jwksClient is not initialized')
+    }
+    const decodedToken = jwt.decode(token, { complete: true })
+    if (!decodedToken) {
+        throw new Error('Invalid token')
+    }
+
+    const kid = decodedToken.header.kid
+    const publicKey = await getSigningKey(kid)
+
+    return new Promise((resolve, reject) => {
+        jwt.verify(token, publicKey, { algorithms: ['RS256'] }, (err, decoded) => {
+            if (err) {
+                reject(err)
+                return
+            }
+            resolve(decoded)
+        })
+    })
+}
+
+/**
+ * 随机生成验证码，包含字母和数字
+ *
+ * @author CaoMeiYouRen
+ * @date 2024-10-15
+ * @export
+ * @param len
+ */
+export function getRandomCode(len: number) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let code = ''
+    for (let i = 0; i < len; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return code
+}
+
+// const jelban = new Jelban({
+//     allowDomains: ALLOWED_EMAIL_DOMAINS,
+// })
+
+/**
+ * 验证邮箱是否为临时/垃圾邮箱
+ *
+ * @author CaoMeiYouRen
+ * @date 2024-11-02
+ * @export
+ * @param email
+ */
+export function isJunkEmail(email: string): boolean {
+    if (!ALLOWED_EMAIL_DOMAINS?.length) {
+        return false
+    }
+    // 判断email的域名是否在 ALLOWED_EMAIL_DOMAINS 里，如果是，则不是垃圾邮箱
+    return !ALLOWED_EMAIL_DOMAINS.includes(email?.split('@')?.[1])
+}
+
+/**
+ * 验证邮箱的域名是否为允许的域名
+ *
+ * @author CaoMeiYouRen
+ * @date 2024-11-02
+ * @export
+ * @param email
+ */
+export function isAllowedEmail(email: string) {
+    if (!ALLOWED_EMAIL_DOMAINS?.length) {
+        return true
+    }
+    return ALLOWED_EMAIL_DOMAINS.includes(email?.split('@')?.[1])
 }

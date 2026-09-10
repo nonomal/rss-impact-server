@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Session } from '@nestjs/common'
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags, OmitType } from '@nestjs/swagger'
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Repository } from 'typeorm'
 import { InjectRepository } from '@nestjs/typeorm'
-import { compare } from 'bcryptjs'
+import { compare } from 'bcrypt'
 import { ICrudQuery } from '../acl-crud/acl-crud.controller'
 import { CreateUser, FindUser, UpdateMe, UpdateUser, User } from '@/db/models/user.entity'
 import { CrudQuery } from '@/decorators/crud-query.decorator'
@@ -98,14 +98,22 @@ export class UserController {
             title: '个人信息',
             submitBtn: true,
             emptyBtn: false,
-            column: initAvueCrudColumn(OmitType(User, ['createdAt', 'updatedAt', 'password', 'accessToken'] as const)).map((col) => {
-                const hide = ['roles'].includes(col.prop) && !user?.roles?.includes(Role.admin)
-                const disabled = ['id', 'roles'].includes(col.prop)
-                const readonly = ['id', 'roles'].includes(col.prop)
+            column: initAvueCrudColumn(User).map((col) => {
+                let hide = false
+                const showProps = ['id', 'username', 'email']
+                if (!showProps.includes(col.prop)) {
+                    hide = true
+                }
+                if (['roles'].includes(col.prop) && user?.roles?.includes(Role.admin)) {
+                    hide = false
+                }
+                const disabled = ['id', 'roles', 'accessToken'].includes(col.prop)
+                const readonly = ['id', 'roles', 'accessToken'].includes(col.prop)
+
                 return {
                     ...col,
-                    readonly,
                     hide,
+                    readonly,
                     disabled,
                     span: 24,
                     labelWidth: 120,
@@ -125,6 +133,10 @@ export class UserController {
     @ApiResponse({ status: 201, type: User })
     @Post('me')
     async updateMe(@Body() body: UpdateMe, @CurrentUser() user: User) {
+        // demo 用户禁用用户名/邮箱修改
+        if (user.roles.includes(Role.demo)) {
+            throw new HttpError(400, 'demo 用户禁止修改个人信息！')
+        }
         if (body.username && body.username !== user.username && await this.userService.findOne({ username: body.username })) {
             throw new HttpError(400, '用户名已存在！')
         }
@@ -155,7 +167,6 @@ export class UserController {
             emptyBtn: true,
             column,
         }
-
     }
 
     @UseSession()
@@ -163,6 +174,10 @@ export class UserController {
     @ApiOperation({ summary: '重置密码' })
     @ApiResponse({ status: 201, type: ResponseDto })
     async resetPassword(@Body() body: ResetPasswordDto, @CurrentUser() currentUser: User, @Session() session: ISession) {
+        // demo 用户禁用用户名/邮箱修改
+        if (currentUser.roles.includes(Role.demo)) {
+            throw new HttpError(400, 'demo 用户禁止修改密码！')
+        }
         const user = await this.repository
             .createQueryBuilder('user')
             .where({
@@ -224,4 +239,5 @@ export class UserController {
     async delete(@Param('id') id: number) {
         return this.userService.delete(id)
     }
+
 }

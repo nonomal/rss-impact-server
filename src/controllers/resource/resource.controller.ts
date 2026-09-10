@@ -34,6 +34,7 @@ import { getConditions } from '@/utils/check'
 @ApiTags('resource')
 @Controller('resource')
 export class ResourceController {
+
     constructor(
         @InjectRepository(Resource) private readonly repository: Repository<Resource>,
         private readonly resourceService: ResourceService) {
@@ -50,7 +51,7 @@ export class ResourceController {
             })
             .select('resource.type', 'type')// 选择要 distinct 的列
             .distinct(true) // 启用 distinct
-            .getRawMany() as { type: string }[]
+            .getRawMany()
         return data.filter((e) => e.type).map((e) => ({
             label: e.type,
             value: e.type,
@@ -62,4 +63,5 @@ export class ResourceController {
     async delete(@Param('id') id: number, @CurrentUser() user: User) {
         return this.resourceService.delete(id, user)
     }
+
 }

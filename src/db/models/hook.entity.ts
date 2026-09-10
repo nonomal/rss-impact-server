@@ -25,7 +25,7 @@ import { Filter } from '@/models/filter.dto'
 import { FilterOut } from '@/models/filter-out.dto'
 import { CustomColumn } from '@/decorators/custom-column.decorator'
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 const hookConfig: Record<HookType, Function> = {
     notification: NotificationConfig,
     webhook: WebhookConfig,
@@ -92,7 +92,10 @@ export class Hook extends AclBase {
     @BeforeInsert()
     @BeforeUpdate()
     protected async insertConfigValidate() { // 插入/更新前校验
-        const obj: HookConfig = plainToInstance(hookConfig[this.type] as any, this.config)
+        const obj: HookConfig = plainToInstance(hookConfig[this.type] as any, this.config, {
+            enableCircularCheck: true,
+
+        })
         const validationErrors = await validate(obj, {
             whitelist: true,
             skipUndefinedProperties: true, // 忽略 undefined。如果是 undefined ，表明该字段没有更新
@@ -204,6 +207,8 @@ export class CreateHook extends OmitType(Hook, ['id', 'createdAt', 'updatedAt'] 
 export class UpdateHook extends PartialType(OmitType(Hook, ['createdAt', 'updatedAt'] as const)) { }
 
 export class FindHook extends FindPlaceholderDto<Hook> {
+
     @ApiProperty({ type: () => [Hook] })
     declare data: Hook[]
+
 }

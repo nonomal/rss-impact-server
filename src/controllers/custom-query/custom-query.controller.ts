@@ -56,10 +56,15 @@ import { to } from '@/utils/helper'
         },
     },
     relations: ['categories', 'feeds'],
+    props: {
+        label: 'name',
+        value: 'id',
+    },
 })
 @ApiTags('custom-query')
 @Controller('custom-query')
 export class CustomQueryController {
+
     constructor(
         @InjectRepository(CustomQuery) private readonly repository: Repository<CustomQuery>,
         @InjectRepository(Article) private readonly articlerepository: Repository<Article>,
@@ -103,6 +108,7 @@ export class CustomQueryController {
                 where: {
                     pubDate,
                     feedId,
+                    userId: custom.userId,
                 },
                 take: limit || 20,
                 order: {
@@ -131,11 +137,11 @@ export class CustomQueryController {
                     body = json(data)
                     break
                 case 'rss2.0':
-                    headers['Content-Type'] = 'application/xml; charset=UTF-8'  // application/rss+xml
+                    headers['Content-Type'] = 'application/xml; charset=UTF-8' // application/rss+xml
                     body = rss(data)
                     break
                 case 'atom':
-                    headers['Content-Type'] = 'application/xml; charset=UTF-8'  // application/atom+xml
+                    headers['Content-Type'] = 'application/xml; charset=UTF-8' // application/atom+xml
                     body = atom(data)
                     break
                 default:
@@ -151,7 +157,6 @@ export class CustomQueryController {
         if (!res.headersSent) {
             res.header('Content-Type', headers['Content-Type']).status(200).send(body)
         }
-
     }
 
     @UseSession()
@@ -160,7 +165,7 @@ export class CustomQueryController {
     @Put('')
     async update(@Body() body: UpdateCustomQuery, @CurrentUser() user: User) {
         const id = body.id
-        delete body.user  // 以 userId 字段为准
+        delete body.user // 以 userId 字段为准
         if (!body.userId) {
             body.userId = user.id
         }

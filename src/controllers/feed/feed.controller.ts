@@ -20,7 +20,7 @@ import { AvueFormOption } from '@/interfaces/avue'
 import { FileUploadDto } from '@/models/file-upload.dto'
 import { Category } from '@/db/models/category.entity'
 import { to } from '@/utils/helper'
-import { __DEV__ } from '@/app.config'
+import { __DEV__, DEFAULT_FEED_CRON } from '@/app.config'
 import { AvueCrudOption } from '@/models/avue.dto'
 import { CategoryService } from '@/services/category/category.service'
 
@@ -44,7 +44,7 @@ import { CategoryService } from '@/services/category/category.service'
             dto: UpdateFeed,
         },
     },
-    relations: ['hooks'],
+    relations: ['hooks', 'customQueries'],
     props: {
         label: 'title',
         value: 'id',
@@ -145,7 +145,7 @@ export class FeedController {
     })
     @Post('import')
     @UseInterceptors(FileInterceptor('file'))
-    // eslint-disable-next-line no-undef
+
     async importByOpml(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: User) {
         const fileText = file.buffer.toString('utf-8')
         const opmlResult = await opmlParse(fileText)
@@ -169,11 +169,14 @@ export class FeedController {
                 const newFeed = plainToInstance(Feed, {
                     url: sub.xmlUrl,
                     title: sub.text,
-                    cron: 'EVERY_10_MINUTES',
+                    cron: DEFAULT_FEED_CRON,
                     isEnabled: true,
                     categoryId: uncategorizedId,
                     userId: user.id,
                     hooks: [],
+                }, {
+                    enableCircularCheck: true,
+
                 })
                 const [error, feed] = await to(this.create(newFeed, user))
                 if (error) {
@@ -188,11 +191,14 @@ export class FeedController {
                         const newFeed = plainToInstance(Feed, {
                             url: subItem.xmlUrl,
                             title: subItem.text,
-                            cron: 'EVERY_10_MINUTES',
+                            cron: DEFAULT_FEED_CRON,
                             isEnabled: true,
                             categoryId: categories.find((e) => e.name === sub.text)?.id,
                             userId: user.id,
                             hooks: [],
+                        }, {
+                            enableCircularCheck: true,
+
                         })
                         const [error, feed] = await to(this.create(newFeed, user))
                         if (error) {
@@ -263,8 +269,8 @@ export class FeedController {
         if (await this.repository.count({ where: { url, userId } })) {
             throw new HttpError(400, '已存在相同 URL 的订阅！')
         }
-        delete body.user  // 以 userId 字段为准
-        body.userId = user.id  // 以 userId 字段为准
+        delete body.user // 以 userId 字段为准
+        body.userId = user.id // 以 userId 字段为准
 
         const feed = await this.repository.save(this.repository.create(body))
         if (feed.isEnabled) {
@@ -279,7 +285,7 @@ export class FeedController {
     async update(@Body() body: UpdateFeed, @CurrentUser() user: User) {
         __DEV__ && this.logger.debug(JSON.stringify(body, null, 4))
         const id = body.id
-        delete body.user  // 以 userId 字段为准
+        delete body.user // 以 userId 字段为准
         if (!body.userId) {
             body.userId = user.id
         }
@@ -342,4 +348,5 @@ export class FeedController {
         await this.tasksService.disableFeedTask(feed, true)
         return feed
     }
+
 }

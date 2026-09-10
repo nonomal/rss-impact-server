@@ -711,6 +711,28 @@
                 ]
             }
         },
+        "/api/auth/meta": {
+            "get": {
+                "operationId": "Auth_meta",
+                "summary": "登录注册相关的元信息",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthMeta"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
         "/api/auth/login": {
             "post": {
                 "operationId": "Auth_login",
@@ -741,23 +763,23 @@
                 "tags": [
                     "auth"
                 ]
-            }
-        },
-        "/api/auth/logout": {
-            "post": {
-                "operationId": "Auth_logout",
-                "summary": "登出",
-                "parameters": [],
-                "responses": {
-                    "201": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ResponseDto"
-                                }
-                            }
+            },
+            "get": {
+                "operationId": "Auth_loginByAuth0",
+                "summary": "基于 Auth0 登录",
+                "parameters": [
+                    {
+                        "name": "redirect",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
                     }
                 },
                 "tags": [
@@ -766,6 +788,28 @@
             }
         },
         "/api/auth/register": {
+            "get": {
+                "operationId": "Auth_registerByAuth0",
+                "summary": "基于 Auth0 注册",
+                "parameters": [
+                    {
+                        "name": "redirect",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "auth"
+                ]
+            },
             "post": {
                 "operationId": "Auth_register",
                 "summary": "注册",
@@ -787,6 +831,99 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/api/auth/callback": {
+            "post": {
+                "operationId": "Auth_callback",
+                "summary": "处理 OIDC 回调",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Auth0CallbackData"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "auth"
+                ]
+            },
+            "get": {
+                "operationId": "Auth_callbackGet",
+                "summary": "处理 OIDC GET 回调",
+                "parameters": [
+                    {
+                        "name": "id_token",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "state",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "code",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sid",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "operationId": "Auth_logout",
+                "summary": "登出",
+                "parameters": [],
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseDto"
                                 }
                             }
                         }
@@ -3713,6 +3850,30 @@
                 ]
             }
         },
+        "/api/custom-query/dicData": {
+            "get": {
+                "operationId": "CustomQuery_dicData",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DicData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "custom-query"
+                ]
+            }
+        },
         "/api/custom-query/config": {
             "get": {
                 "operationId": "CustomQuery_config",
@@ -4000,6 +4161,225 @@
                 },
                 "tags": [
                     "system"
+                ]
+            }
+        },
+        "/api/system/sqliteVacuum": {
+            "post": {
+                "operationId": "System_sqliteVacuum",
+                "summary": "释放 sqlite 数据库未使用空间",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "响应成功"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "数据格式有误"
+                    },
+                    "401": {
+                        "description": "没有权限访问"
+                    },
+                    "403": {
+                        "description": "该用户没有权限访问"
+                    },
+                    "404": {
+                        "description": "找不到要访问的接口"
+                    },
+                    "408": {
+                        "description": "请求超时"
+                    },
+                    "409": {
+                        "description": "请求时发生了冲突"
+                    },
+                    "429": {
+                        "description": "请求次数超限"
+                    },
+                    "500": {
+                        "description": "服务器内部错误"
+                    },
+                    "502": {
+                        "description": "代理服务器错误"
+                    }
+                },
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/disableEmptyFeeds": {
+            "post": {
+                "operationId": "System_disableEmptyFeeds",
+                "summary": "禁用不包含任何 Hook 和 自定义查询的订阅",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "响应成功"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "数据格式有误"
+                    },
+                    "401": {
+                        "description": "没有权限访问"
+                    },
+                    "403": {
+                        "description": "该用户没有权限访问"
+                    },
+                    "404": {
+                        "description": "找不到要访问的接口"
+                    },
+                    "408": {
+                        "description": "请求超时"
+                    },
+                    "409": {
+                        "description": "请求时发生了冲突"
+                    },
+                    "429": {
+                        "description": "请求次数超限"
+                    },
+                    "500": {
+                        "description": "服务器内部错误"
+                    },
+                    "502": {
+                        "description": "代理服务器错误"
+                    }
+                },
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/daily-count/reCount/option": {
+            "get": {
+                "operationId": "DailyCount_reCountOption",
+                "summary": "获取 重新统计接口 option",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Option"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "创建成功"
+                    },
+                    "400": {
+                        "description": "数据格式有误"
+                    },
+                    "401": {
+                        "description": "没有权限访问"
+                    },
+                    "403": {
+                        "description": "该用户没有权限访问"
+                    },
+                    "404": {
+                        "description": "找不到要访问的接口"
+                    },
+                    "408": {
+                        "description": "请求超时"
+                    },
+                    "409": {
+                        "description": "请求时发生了冲突"
+                    },
+                    "429": {
+                        "description": "请求次数超限"
+                    },
+                    "500": {
+                        "description": "服务器内部错误"
+                    },
+                    "502": {
+                        "description": "代理服务器错误"
+                    }
+                },
+                "tags": [
+                    "daily-count"
+                ]
+            }
+        },
+        "/api/daily-count/reCount": {
+            "post": {
+                "operationId": "DailyCount_reCount",
+                "summary": "重新统计接口",
+                "description": "需要在后台手动执行，将一定时间内的日志重新统计",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReCountDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "响应成功"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "数据格式有误"
+                    },
+                    "401": {
+                        "description": "没有权限访问"
+                    },
+                    "403": {
+                        "description": "该用户没有权限访问"
+                    },
+                    "404": {
+                        "description": "找不到要访问的接口"
+                    },
+                    "408": {
+                        "description": "请求超时"
+                    },
+                    "409": {
+                        "description": "请求时发生了冲突"
+                    },
+                    "429": {
+                        "description": "请求次数超限"
+                    },
+                    "500": {
+                        "description": "服务器内部错误"
+                    },
+                    "502": {
+                        "description": "代理服务器错误"
+                    }
+                },
+                "tags": [
+                    "daily-count"
                 ]
             }
         },
@@ -4614,6 +4994,21 @@
                         "title": "邮箱",
                         "example": "admin@example.com"
                     },
+                    "emailVerified": {
+                        "type": "boolean",
+                        "title": "邮箱已验证",
+                        "example": true
+                    },
+                    "disablePasswordLogin": {
+                        "type": "boolean",
+                        "title": "禁用密码登录",
+                        "example": false
+                    },
+                    "avatar": {
+                        "type": "string",
+                        "title": "头像",
+                        "example": "URL_ADDRESS"
+                    },
                     "roles": {
                         "title": "角色",
                         "example": [
@@ -4629,6 +5024,12 @@
                         "title": "接口访问令牌",
                         "description": "接口访问令牌，部分情况可替代账号密码",
                         "example": "rss-impact:fef26d6e-040f-4a7b-8d6a-4e4f12e107b6"
+                    },
+                    "auth0Id": {
+                        "type": "string",
+                        "title": "Auth0 ID",
+                        "description": "绑定的 auth0 账号",
+                        "example": "github|114514"
                     }
                 },
                 "required": [
@@ -4637,6 +5038,8 @@
                     "updatedAt",
                     "username",
                     "email",
+                    "emailVerified",
+                    "disablePasswordLogin",
                     "roles",
                     "accessToken"
                 ]
@@ -4728,6 +5131,21 @@
                         "title": "邮箱",
                         "example": "admin@example.com"
                     },
+                    "emailVerified": {
+                        "type": "boolean",
+                        "title": "邮箱已验证",
+                        "example": true
+                    },
+                    "disablePasswordLogin": {
+                        "type": "boolean",
+                        "title": "禁用密码登录",
+                        "example": false
+                    },
+                    "avatar": {
+                        "type": "string",
+                        "title": "头像",
+                        "example": "URL_ADDRESS"
+                    },
                     "roles": {
                         "title": "角色",
                         "example": [
@@ -4737,11 +5155,19 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "auth0Id": {
+                        "type": "string",
+                        "title": "Auth0 ID",
+                        "description": "绑定的 auth0 账号",
+                        "example": "github|114514"
                     }
                 },
                 "required": [
                     "username",
                     "email",
+                    "emailVerified",
+                    "disablePasswordLogin",
                     "roles"
                 ]
             },
@@ -4768,6 +5194,21 @@
                         "title": "邮箱",
                         "example": "admin@example.com"
                     },
+                    "emailVerified": {
+                        "type": "boolean",
+                        "title": "邮箱已验证",
+                        "example": true
+                    },
+                    "disablePasswordLogin": {
+                        "type": "boolean",
+                        "title": "禁用密码登录",
+                        "example": false
+                    },
+                    "avatar": {
+                        "type": "string",
+                        "title": "头像",
+                        "example": "URL_ADDRESS"
+                    },
                     "roles": {
                         "title": "角色",
                         "example": [
@@ -4777,8 +5218,37 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "auth0Id": {
+                        "type": "string",
+                        "title": "Auth0 ID",
+                        "description": "绑定的 auth0 账号",
+                        "example": "github|114514"
                     }
                 }
+            },
+            "AuthMeta": {
+                "type": "object",
+                "properties": {
+                    "enableRegister": {
+                        "type": "boolean"
+                    },
+                    "disablePasswordLogin": {
+                        "type": "boolean"
+                    },
+                    "disablePasswordRegister": {
+                        "type": "boolean"
+                    },
+                    "enableAuth0": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "enableRegister",
+                    "disablePasswordLogin",
+                    "disablePasswordRegister",
+                    "enableAuth0"
+                ]
             },
             "LoginDto": {
                 "type": "object",
@@ -4799,6 +5269,23 @@
                     "username",
                     "password"
                 ]
+            },
+            "Auth0CallbackData": {
+                "type": "object",
+                "properties": {
+                    "id_token": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "sid": {
+                        "type": "string"
+                    }
+                }
             },
             "RegisterDto": {
                 "type": "object",
@@ -4836,22 +5323,23 @@
                 "properties": {
                     "type": {
                         "enum": [
-                            "ServerChanTurbo",
-                            "Dingtalk",
                             "CustomEmail",
-                            "WechatRobot",
-                            "WechatApp",
+                            "Dingtalk",
+                            "Discord",
+                            "Feishu",
+                            "IGot",
+                            "Ntfy",
+                            "OneBot",
                             "PushDeer",
                             "PushPlus",
-                            "IGot",
                             "Qmsg",
-                            "XiZhi",
-                            "CoolPush",
-                            "Email",
-                            "UniPush",
+                            "ServerChanTurbo",
+                            "ServerChanV3",
                             "Telegram",
-                            "Discord",
-                            "OneBot"
+                            "WechatApp",
+                            "WechatRobot",
+                            "WxPusher",
+                            "XiZhi"
                         ],
                         "type": "string",
                         "title": "推送类型",
@@ -4861,9 +5349,20 @@
                     "config": {
                         "type": "object",
                         "title": "推送配置",
-                        "description": "具体配置请参考 push-all-in-one 文档",
+                        "description": "具体配置请参考 push-all-in-one 文档，在线生成配置：https://push.cmyr.dev",
                         "example": {
-                            "SCTKEY": ""
+                            "SERVER_CHAN_TURBO_SENDKEY": ""
+                        }
+                    },
+                    "option": {
+                        "type": "object",
+                        "title": "附加参数",
+                        "description": "具体附加参数请参考 push-all-in-one 文档，在线生成配置：https://push.cmyr.dev",
+                        "example": {
+                            "short": "1",
+                            "noip": true,
+                            "channel": "1",
+                            "openid": "1"
                         }
                     },
                     "isMergePush": {
@@ -4905,18 +5404,42 @@
                         "title": "最大长度",
                         "description": "一次推送文本的最大长度。默认值为 4096",
                         "example": 4096
+                    },
+                    "isRemotePush": {
+                        "type": "boolean",
+                        "title": "是否远程推送",
+                        "description": "如果为否，则通过在本地调用 push-all-in-one 进行推送，可用性取决于本机网络；如果为是，则通过调用远程的 push-all-in-cloud 进行推送，适合服务器无法访问外网的情况",
+                        "example": false
+                    },
+                    "remotePushUrl": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 1024,
+                        "title": "远程推送地址",
+                        "description": "远程推送请设置本字段为 push-all-in-cloud 服务的地址。参考：https://github.com/CaoMeiYouRen/push-all-in-cloud",
+                        "example": ""
+                    },
+                    "remoteForwardKey": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 1024,
+                        "title": "远程推送KEY",
+                        "description": "请替换为真实的 AUTH_FORWARD_KEY",
+                        "example": ""
                     }
                 },
                 "required": [
                     "type",
                     "config",
+                    "option",
                     "isMergePush",
                     "isMarkdown",
                     "isSnippet",
                     "onlySummary",
                     "useAiSummary",
                     "appendAiSummary",
-                    "maxLength"
+                    "maxLength",
+                    "isRemotePush"
                 ]
             },
             "WebhookConfig": {
@@ -5152,6 +5675,12 @@
                         "description": "OpenAI 最大 token 数。注意一定要比模型的 最大上下文 小，否则可能会总结失败。默认值 2048",
                         "example": 2048
                     },
+                    "responseFormat": {
+                        "type": "string",
+                        "title": "响应格式",
+                        "description": "OpenAI 响应格式。总结时默认为纯文本，分类时默认为JSON",
+                        "example": 0
+                    },
                     "minContentLength": {
                         "type": "number",
                         "title": "最小正文长度",
@@ -5234,6 +5763,13 @@
                         "description": "过滤时间，返回指定时间范围内的内容。设置为 0 禁用",
                         "example": 3600
                     },
+                    "link": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 2048,
+                        "title": "过滤链接",
+                        "example": "url1|url2"
+                    },
                     "title": {
                         "type": "string",
                         "minLength": 0,
@@ -5295,6 +5831,13 @@
             "FilterOut": {
                 "type": "object",
                 "properties": {
+                    "link": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 2048,
+                        "title": "排除链接",
+                        "example": "url1|url2"
+                    },
                     "title": {
                         "type": "string",
                         "minLength": 0,
@@ -5402,6 +5945,138 @@
                     "url"
                 ]
             },
+            "CustomQuery": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "number",
+                        "title": "ID",
+                        "example": 1
+                    },
+                    "createdAt": {
+                        "format": "date-time",
+                        "type": "string",
+                        "title": "创建时间",
+                        "example": "2023-12-31T16:00:00.000Z"
+                    },
+                    "updatedAt": {
+                        "format": "date-time",
+                        "type": "string",
+                        "title": "更新时间",
+                        "example": "2023-12-31T16:00:00.000Z"
+                    },
+                    "userId": {
+                        "type": "number",
+                        "title": "所属用户",
+                        "example": 1
+                    },
+                    "user": {
+                        "title": "所属用户",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "名称",
+                        "example": "查询A"
+                    },
+                    "scope": {
+                        "type": "object",
+                        "enum": [
+                            "all",
+                            "category",
+                            "feed"
+                        ],
+                        "title": "查询范围",
+                        "description": "指定分类和指定订阅的配置互斥，只按照本项指定的范围查询",
+                        "example": "all"
+                    },
+                    "categories": {
+                        "title": "指定分类",
+                        "description": "支持选择多个分类",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Category"
+                        }
+                    },
+                    "feeds": {
+                        "title": "指定订阅",
+                        "description": "支持选择多个订阅",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Feed"
+                        }
+                    },
+                    "format": {
+                        "type": "object",
+                        "enum": [
+                            "rss2.0",
+                            "atom",
+                            "json"
+                        ],
+                        "title": "输出格式",
+                        "example": "rss2.0"
+                    },
+                    "useAiSummary": {
+                        "type": "boolean",
+                        "title": "使用 AI 总结",
+                        "description": "如果是，则用 AI 总结替换原本的总结"
+                    },
+                    "appendAiSummary": {
+                        "type": "boolean",
+                        "title": "增加 AI 总结",
+                        "description": "如果是，则将 AI 总结 增加 到正文前，以方便通过 RSS 阅读器阅读"
+                    },
+                    "key": {
+                        "type": "string",
+                        "title": "访问秘钥",
+                        "description": "通过访问秘钥即可无需登录访问 RSS 订阅。一旦泄露，请立即修改！",
+                        "example": "custom-query-key:2c28d0b6-47db-43a4-aff4-439edbe29200"
+                    },
+                    "url": {
+                        "type": "string",
+                        "title": "输出路径"
+                    },
+                    "filter": {
+                        "title": "过滤条件",
+                        "description": "保留想要的内容，必须符合全部条件才保留。支持通过正则表达式过滤。留空的规则不会过滤。",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Filter"
+                            }
+                        ]
+                    },
+                    "filterout": {
+                        "title": "排除条件",
+                        "description": "去掉不要的内容，有一个条件符合就排除。支持通过正则表达式排除。留空的规则不会排除。",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FilterOut"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "createdAt",
+                    "updatedAt",
+                    "userId",
+                    "user",
+                    "name",
+                    "scope",
+                    "format",
+                    "useAiSummary",
+                    "appendAiSummary",
+                    "key",
+                    "filter",
+                    "filterout"
+                ]
+            },
             "Category": {
                 "type": "object",
                 "properties": {
@@ -5452,6 +6127,14 @@
                         "items": {
                             "$ref": "#/components/schemas/Feed"
                         }
+                    },
+                    "customQueries": {
+                        "title": "自定义查询列表",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomQuery"
+                        }
                     }
                 },
                 "required": [
@@ -5461,7 +6144,8 @@
                     "userId",
                     "user",
                     "name",
-                    "feeds"
+                    "feeds",
+                    "customQueries"
                 ]
             },
             "Article": {
@@ -5734,6 +6418,14 @@
                         "items": {
                             "$ref": "#/components/schemas/Hook"
                         }
+                    },
+                    "customQueries": {
+                        "title": "自定义查询列表",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomQuery"
+                        }
                     }
                 },
                 "required": [
@@ -5750,7 +6442,8 @@
                     "category",
                     "isFullText",
                     "articles",
-                    "hooks"
+                    "hooks",
+                    "customQueries"
                 ]
             },
             "Hook": {
@@ -6071,6 +6764,14 @@
                         "items": {
                             "$ref": "#/components/schemas/Hook"
                         }
+                    },
+                    "customQueries": {
+                        "title": "自定义查询列表",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomQuery"
+                        }
                     }
                 },
                 "required": [
@@ -6084,7 +6785,8 @@
                     "category",
                     "isFullText",
                     "articles",
-                    "hooks"
+                    "hooks",
+                    "customQueries"
                 ]
             },
             "UpdateFeed": {
@@ -6206,6 +6908,14 @@
                         "items": {
                             "$ref": "#/components/schemas/Hook"
                         }
+                    },
+                    "customQueries": {
+                        "title": "自定义查询列表",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomQuery"
+                        }
                     }
                 }
             },
@@ -6268,13 +6978,22 @@
                         "items": {
                             "$ref": "#/components/schemas/Feed"
                         }
+                    },
+                    "customQueries": {
+                        "title": "自定义查询列表",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomQuery"
+                        }
                     }
                 },
                 "required": [
                     "userId",
                     "user",
                     "name",
-                    "feeds"
+                    "feeds",
+                    "customQueries"
                 ]
             },
             "UpdateCategory": {
@@ -6314,6 +7033,14 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Feed"
+                        }
+                    },
+                    "customQueries": {
+                        "title": "自定义查询列表",
+                        "example": [],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomQuery"
                         }
                     }
                 }
@@ -7093,138 +7820,6 @@
                     }
                 }
             },
-            "CustomQuery": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "number",
-                        "title": "ID",
-                        "example": 1
-                    },
-                    "createdAt": {
-                        "format": "date-time",
-                        "type": "string",
-                        "title": "创建时间",
-                        "example": "2023-12-31T16:00:00.000Z"
-                    },
-                    "updatedAt": {
-                        "format": "date-time",
-                        "type": "string",
-                        "title": "更新时间",
-                        "example": "2023-12-31T16:00:00.000Z"
-                    },
-                    "userId": {
-                        "type": "number",
-                        "title": "所属用户",
-                        "example": 1
-                    },
-                    "user": {
-                        "title": "所属用户",
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/User"
-                            }
-                        ]
-                    },
-                    "name": {
-                        "type": "string",
-                        "title": "名称",
-                        "example": "查询A"
-                    },
-                    "scope": {
-                        "type": "object",
-                        "enum": [
-                            "all",
-                            "category",
-                            "feed"
-                        ],
-                        "title": "查询范围",
-                        "description": "指定分类和指定订阅的配置互斥，只按照本项指定的范围查询",
-                        "example": "all"
-                    },
-                    "categories": {
-                        "title": "指定分类",
-                        "description": "支持选择多个分类",
-                        "example": [],
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Category"
-                        }
-                    },
-                    "feeds": {
-                        "title": "指定订阅",
-                        "description": "支持选择多个订阅",
-                        "example": [],
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Feed"
-                        }
-                    },
-                    "format": {
-                        "type": "object",
-                        "enum": [
-                            "rss2.0",
-                            "atom",
-                            "json"
-                        ],
-                        "title": "输出格式",
-                        "example": "rss2.0"
-                    },
-                    "useAiSummary": {
-                        "type": "boolean",
-                        "title": "使用 AI 总结",
-                        "description": "如果是，则用 AI 总结替换原本的总结"
-                    },
-                    "appendAiSummary": {
-                        "type": "boolean",
-                        "title": "增加 AI 总结",
-                        "description": "如果是，则将 AI 总结 增加 到正文前，以方便通过 RSS 阅读器阅读"
-                    },
-                    "key": {
-                        "type": "string",
-                        "title": "访问秘钥",
-                        "description": "通过访问秘钥即可无需登录访问 RSS 订阅。一旦泄露，请立即修改！",
-                        "example": "custom-query-key:2c28d0b6-47db-43a4-aff4-439edbe29200"
-                    },
-                    "url": {
-                        "type": "string",
-                        "title": "输出路径"
-                    },
-                    "filter": {
-                        "title": "过滤条件",
-                        "description": "保留想要的内容，必须符合全部条件才保留。支持通过正则表达式过滤。留空的规则不会过滤。",
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Filter"
-                            }
-                        ]
-                    },
-                    "filterout": {
-                        "title": "排除条件",
-                        "description": "去掉不要的内容，有一个条件符合就排除。支持通过正则表达式排除。留空的规则不会排除。",
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/FilterOut"
-                            }
-                        ]
-                    }
-                },
-                "required": [
-                    "id",
-                    "createdAt",
-                    "updatedAt",
-                    "userId",
-                    "user",
-                    "name",
-                    "scope",
-                    "format",
-                    "useAiSummary",
-                    "appendAiSummary",
-                    "key",
-                    "filter",
-                    "filterout"
-                ]
-            },
             "FindCustomQuery": {
                 "type": "object",
                 "properties": {
@@ -7489,6 +8084,20 @@
                     "uptime"
                 ]
             },
+            "ReCountDto": {
+                "type": "object",
+                "properties": {
+                    "dayNum": {
+                        "type": "number",
+                        "title": "天数",
+                        "description": "默认为 30 天内",
+                        "example": 30
+                    }
+                },
+                "required": [
+                    "dayNum"
+                ]
+            },
             "DailyCount": {
                 "type": "object",
                 "properties": {
@@ -7514,6 +8123,12 @@
                         "title": "日期",
                         "example": "2024-01-01"
                     },
+                    "rawDate": {
+                        "format": "date-time",
+                        "type": "string",
+                        "title": "原始日期",
+                        "example": "2024-01-01T00:00:00.000Z"
+                    },
                     "articleCount": {
                         "type": "number",
                         "title": "文章数量",
@@ -7528,6 +8143,36 @@
                         "type": "number",
                         "title": "Webhook和通知日志数量",
                         "example": 233
+                    },
+                    "feedCount": {
+                        "type": "number",
+                        "title": "RSS订阅源数量",
+                        "example": 233
+                    },
+                    "categoryCount": {
+                        "type": "number",
+                        "title": "分类数量",
+                        "example": 233
+                    },
+                    "hookCount": {
+                        "type": "number",
+                        "title": "Hook数量",
+                        "example": 233
+                    },
+                    "customQueryCount": {
+                        "type": "number",
+                        "title": "自定义查询数量",
+                        "example": 233
+                    },
+                    "proxyConfigCount": {
+                        "type": "number",
+                        "title": "代理数量",
+                        "example": 233
+                    },
+                    "userCount": {
+                        "type": "number",
+                        "title": "用户数量",
+                        "example": 233
                     }
                 },
                 "required": [
@@ -7535,9 +8180,16 @@
                     "createdAt",
                     "updatedAt",
                     "date",
+                    "rawDate",
                     "articleCount",
                     "resourceCount",
-                    "webhookLogCount"
+                    "webhookLogCount",
+                    "feedCount",
+                    "categoryCount",
+                    "hookCount",
+                    "customQueryCount",
+                    "proxyConfigCount",
+                    "userCount"
                 ]
             },
             "FindDailyCount": {

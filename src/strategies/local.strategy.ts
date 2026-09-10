@@ -2,10 +2,11 @@ import { IStrategyOptionsWithRequest, Strategy } from 'passport-local'
 import { PassportStrategy } from '@nestjs/passport'
 import { Injectable, Logger } from '@nestjs/common'
 import { Repository } from 'typeorm'
-import { compare } from 'bcryptjs'
+import { compare } from 'bcrypt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { User } from '@/db/models/user.entity'
 import { HttpError } from '@/models/http-error'
+import { DISABLE_PASSWORD_LOGIN } from '@/app.config'
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
@@ -21,6 +22,9 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
     }
 
     async validate(request: Request, username: string, password: string): Promise<any> {
+        if (DISABLE_PASSWORD_LOGIN) {
+            throw new HttpError(401, '当前不允许通过账号密码登录！')
+        }
         const user = await this.userRepository
             .createQueryBuilder('user')
             .where({
@@ -33,37 +37,15 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
             // throw new UnauthorizedException()
             throw new HttpError(401, '用户名或密码错误！')
         }
+        if (user.disablePasswordLogin) {
+            throw new HttpError(401, '该用户不允许通过账号密码登录！')
+        }
         const hash = user.password
-        // TODO 优化 compare 性能
         if (!await compare(password, hash)) {
             throw new HttpError(401, '用户名或密码错误！')
         }
         delete user.password
         return user
-
-        // return new Promise((resolve, reject) => {
-        //     const ext = path.extname(__filename)
-        //     const workPath = path.resolve(__dirname, `../workers/login-worker${ext}`)
-        //     // 创建一个 worker 线程来处理密码比对
-        //     const worker = new Worker(workPath, {
-        //         workerData: { password, hash },
-        //     })
-        //     worker.on('message', (isMatch) => {
-        //         if (isMatch) {
-        //             delete user.password
-        //             // 登录成功
-        //             resolve(user)
-        //         } else {
-        //             // 登录失败
-        //             reject(new HttpError(401, '用户名或密码错误！'))
-        //         }
-        //     })
-
-        //     worker.on('error', (err) => {
-        //         this.logger.error('Error in worker:', err)
-        //         reject(err)
-        //     })
-
-        // })
     }
+
 }

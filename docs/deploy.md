@@ -19,14 +19,14 @@
 
 支持两种注册表：
 
-- Docker Hub: [`caomeiyouren/rss-impact-server`](https://hub.docker.com/r/caomeiyouren/rss-impact-server)
-- GitHub: [`ghcr.io/caomeiyouren/rss-impact-server`](https://github.com/CaoMeiYouRen/rss-impact-server/pkgs/container/rss-impact-server)
+-   Docker Hub: [`caomeiyouren/rss-impact-server`](https://hub.docker.com/r/caomeiyouren/rss-impact-server)
+-   GitHub: [`ghcr.io/caomeiyouren/rss-impact-server`](https://github.com/CaoMeiYouRen/rss-impact-server/pkgs/container/rss-impact-server)
 
 支持以下架构：
 
-- `linux/amd64`
-- ~~`linux/arm/v7`~~
-- ~~`linux/arm64`~~
+-   `linux/amd64`
+-   ~~`linux/arm/v7`~~
+-   ~~`linux/arm64`~~
 
 > linux/arm/v7 和 linux/arm64 尚未进行测试
 
@@ -44,7 +44,7 @@
 下载 [docker-compose.yml](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docker-compose.yml)
 
 ```sh
-wget https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docker-compose.yml
+wget https://raw.githubusercontent.com/CaoMeiYouRen/rss-impact-server/master/docker-compose.yml
 ```
 
 检查有无需要修改的配置
@@ -87,7 +87,7 @@ docker run -d --name rss-impact-server -p 3000:3000 caomeiyouren/rss-impact-serv
 
 在浏览器中打开 `http://{Server IP}:3000` 即可查看结果
 
-您可以使用下面的命令来关闭 RSS Impact 
+您可以使用下面的命令来关闭 RSS Impact
 
 ```sh
 docker stop rss-impact-server
@@ -128,11 +128,17 @@ PORT=3000
 BASE_URL='http://localhost:3000'
 # 启用跨域。如果前端和后端部署在不同域名下，需要跨域时，配置该项。
 # ENABLE_ORIGIN_LIST=https://example1.com,https://example2.com
+# 通过 docker 部署时，也会产生跨域问题，需要配置该项。
+# ENABLE_ORIGIN_LIST='http://localhost:3000,http://127.0.0.1:3000'
+# 如果你有前置的反向代理服务，例如 Nginx 等，则无需配置该项。
 ENABLE_ORIGIN_LIST=''
 # 超时时间(ms)
 TIMEOUT=30000
 # 数据库类型。参考 typeorm 支持的数据库类型
 DATABASE_TYPE='sqlite'
+# 是否启用 TypeORM 自动同步表结构。建议生产环境设置为 false，开发环境可设为 true。
+# 留空时：sqlite 在开发/测试或首次建库时自动同步，mysql/postgres 保持现有策略。
+# DATABASE_SYNCHRONIZE=false
 # 如果是 sqlite，则无需其他数据库相关配置
 # 如果是 mysql/postgres，则需要配置 MySQL/Postgres 相关配置
 # MySQL/Postgres 相关配置如下
@@ -215,13 +221,28 @@ REVERSE_TRIGGER_LIMIT=4
 CACHE_EXPIRE=300
 # RSS 内存缓存时间，单位：秒
 CACHE_CONTENT_EXPIRE=3600
+
+# Sentry dsn 路径，用于错误上报
+SENTRY_DSN=''
 ```
+
+## 缓存配置
+
+`REDIS_URL=redis://localhost:6379/`
+
+如果设置了 该项，则 limiter 和 session 都会用 redis。
+
+## 第三方登录配置
+
+参考 [OIDC 兼容配置指南](./oidc-compatibility.md)
 
 # 🗄️ 数据库配置
 
 注意：`SQLite` 数据库是优先支持的数据库（因为开发环境使用的是`SQLite`）。
 
-`MySQL`  和 `PostgreSQL` 数据库**不会**优先支持，可能存在兼容性问题。如果遇到此类问题，请提 [issue](https://github.com/CaoMeiYouRen/rss-impact-server/issues)。 
+`MySQL` 和 `PostgreSQL` 数据库**不会**优先支持，可能存在兼容性问题。如果遇到此类问题，请提 [issue](https://github.com/CaoMeiYouRen/rss-impact-server/issues)。
+
+> 如果你需要寻找一个免费的 MySQL/PostgreSQL 数据库，请参考 [ripienaar/free-for-dev](https://github.com/ripienaar/free-for-dev) 中列出的云服务商，其中包含了一些免费 MySQL/PostgreSQL 数据库服务。
 
 ## 使用 SQLite 数据库
 
@@ -229,7 +250,15 @@ CACHE_CONTENT_EXPIRE=3600
 
 数据库文件默认保存在 `data/database.sqlite` 路径下。
 
-## 使用 MySQL  数据库
+如果你修改了 `DATA_PATH`，则数据库文件在 `DATA_PATH + "/database.sqlite"` 路径下。
+
+## 使用 MySQL 数据库
+
+> 如果你需要一个免费的 MySQL 数据库，可以考虑使用 [TiDB](https://tidbcloud.com/) 或 [Aiven for MySQL](https://aiven.io/pricing?product=mysql)。
+>
+> TiDB 提供一个 5 GB 的兼容 MySQL 的分布式数据库。详见 [Pricing Details](https://www.pingcap.com/tidb-serverless-pricing-details/)。备注：TiDB 不是完全兼容 MySQL 的，请先确保可以正常连接。
+>
+> Aiven 提供一个 5 GB 的免费 MySQL 数据库。详见 [Free plans](https://aiven.io/docs/platform/concepts/free-plan)。备注：在使用 aiven 之前，请先确保可以服务器可以访问 aivencloud.com，以免无法连接。
 
 在环境变量中进行如下配置
 
@@ -248,19 +277,28 @@ DATABASE_PASSWORD=''
 DATABASE_DATABASE='rss-impact'
 # 连接的字符集 默认为 utf8_general_ci
 DATABASE_CHARSET='utf8_general_ci'
+# MySQL 设置索引最大长度。
+# MySQL 索引最大不超过 3072 字节，在 utf8 编码下不超过 1024 字符，utf8mb4 编码不超过 768 字符
+DATABASE_INDEX_LENGTH=1024
 # MySQL 服务器上配置的时区 （默认：local）
 DATABASE_TIMEZONE='local'
 # 带有 ssl 参数的对象
 DATABASE_SSL=false
 ```
 
-注意：首次连接时会创建数据表。在  `data/database.lock.json` 文件存在时不会同步数据表结构。
+注意：首次连接时会创建数据表。在 `data/database.lock.json` 文件存在时不会同步数据表结构。
 
 如果希望更新数据表结构，请删除 `data/database.lock.json` 文件。
 
 **特别提醒：更新数据表结构可能会导致数据丢失，请提前做好备份！**
 
 ## 使用 PostgreSQL 数据库
+
+> 如果你需要一个免费的 PostgreSQL 数据库，推荐使用 [Supabase](https://supabase.com/) 或 [Vercel](https://vercel.com/)。
+>
+> Supabase 提供一个 500 MB 的免费 PostgreSQL 数据库，并且对数据库运行时间没有限制，非常适合个人用户使用。详见 [pricing](https://supabase.com/pricing)
+>
+> Vercel 提供一个 256 MB 的免费 PostgreSQL 数据库，但对数据库运行时间有限制。详见 [Vercel Postgres Pricing](https://vercel.com/docs/storage/vercel-postgres/usage-and-pricing#vercel-postgres-pricing)
 
 在环境变量中进行如下配置
 
@@ -283,7 +321,7 @@ DATABASE_SCHEMA='public'
 DATABASE_SSL=false
 ```
 
-注意：首次连接时会创建数据表。在  `data/database.lock.json` 文件存在时不会同步数据表结构。
+注意：首次连接时会创建数据表。在 `data/database.lock.json` 文件存在时不会同步数据表结构。
 
 如果希望更新数据表结构，请删除 `data/database.lock.json` 文件。
 

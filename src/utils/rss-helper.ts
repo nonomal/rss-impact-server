@@ -50,7 +50,14 @@ export function formatGuid(e: any): string {
     if (isURL(e.id)) {
         return e.id
     }
-    return e.link || uuid()
+    if (isURL(e.link)) {
+        return e.link
+    }
+    // jackett 中的 comments 为 url link。
+    if (isURL(e.comments)) {
+        return e.comments
+    }
+    return uuid()
 }
 
 /**
@@ -83,19 +90,36 @@ export function rssNormalize(rss: Record<string, any>) {
 export function rssItemToArticle(item: Record<string, any> & Item) {
     const article = new Article()
     article.guid = formatGuid(item)
-    article.link = item.link
+    if (isURL(item.link)) {
+        article.link = item.link
+    } else if (isURL(article.guid)) {
+        article.link = article.guid
+    } else {
+        article.link = null
+    }
+
     article.title = item.title
     article.content = item['content:encoded'] || item.content
     if (item.pubDate || item.isoDate) {
-        article.pubDate = dayjs(item.pubDate || item.isoDate).toDate()
-    }  // 如果没有 pubDate/isoDate 则留空
+        const pubDate = dayjs(item.pubDate || item.isoDate)
+        article.pubDate = pubDate.toDate()
+        // 验证 pubDate 的时间是否为有效时间
+        // 1. 如果 pubDate 为未来时间，且超过当前服务器时间 5 分钟以上，则认定该时间无效
+        // 2. 如果 pubDate 为过去时间，且小于 new Date(0)（1970-01-01），则认定该时间无效
+        const now = dayjs()
+        if (pubDate.isAfter(now.add(5, 'minute'))) { // 未来时间
+            article.pubDate = now.toDate()
+        } else if (pubDate.isBefore(dayjs(0))) { // 过去时间
+            article.pubDate = null
+        }
+    } // 如果没有 pubDate/isoDate 则留空
     article.author = item.author || item.creator || item['dc:creator']
     article.contentSnippet = item['content:encodedSnippet'] || item.contentSnippet
     article.summary = item.summary
     article.categories = item.categories
 
     let enclosure: Enclosure = item.enclosure || item.mediaContent // 解决部分情况下缺失 enclosure 的问题
-    if (!enclosure && /^(https?:\/\/).*(\.torrent$)/.test(article.link)) {  // 检测 link 后缀是否为 .torrent。例如 nyaa.si
+    if (!enclosure && /^(https?:\/\/).*(\.torrent$)/.test(article.link)) { // 检测 link 后缀是否为 .torrent。例如 nyaa.si
         enclosure = {
             url: article.link,
             type: 'application/x-bittorrent',
@@ -117,7 +141,7 @@ export function rssItemToArticle(item: Record<string, any> & Item) {
     return article
 }
 
-export type ArticleFormatoption = {
+export interface ArticleFormatoption {
     // 是否为 Markdown 格式
     isMarkdown?: boolean
     // 是否为 纯文本（去除 HTML）
@@ -186,7 +210,7 @@ export function articleItemFormat(item: Article, option: ArticleFormatoption = {
         text += `时间：${date}`
     }
 
-    text = text.replace(/(\n[\s|\t]*\r*\n)/g, '\n') // 去除多余换行符
+    text = text.replace(/(\n[\s|\t]*\r*\n)/g, '\n').replace(/\n+/g, '\n')// 去除多余换行符
     if (isMarkdown) {
         text = text.replace(/\n/g, '\n\n') // 替换为markdown下的换行
     }
@@ -238,12 +262,12 @@ export function articlesFormat(articles: Article[], option: ArticleFormatoption 
     return text
 }
 
-type Condition = {
+interface Condition {
     filter: Filter
     filterout: FilterOut
 }
 
-const filterFields = ['title', 'content', 'summary', 'author', 'categories', 'enclosureUrl', 'enclosureType', 'enclosureLength']
+const filterFields = ['link', 'title', 'content', 'summary', 'author', 'categories', 'enclosureUrl', 'enclosureType', 'enclosureLength']
 
 /**
  * 按条件过滤文章
@@ -292,7 +316,7 @@ export function filterArticles(articles: Article[], condition: Condition): Artic
         .slice(0, filter.limit || 20) // 默认最多 20 条
 }
 
-type ArticleOption = {
+interface ArticleOption {
     useAiSummary?: boolean
     appendAiSummary?: boolean
 }

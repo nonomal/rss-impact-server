@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsBoolean, IsIn, IsNotEmpty, IsObject } from 'class-validator'
-import { MetaPushConfig, PushType, PushConfig, PushTypeList } from '@/interfaces/push-type'
+import { IsBoolean, IsIn, IsNotEmpty, IsObject, IsOptional, Length, ValidateIf } from 'class-validator'
+import { MetaPushConfig, PushType, PushTypeList } from '@/interfaces/push-type'
 import { IsSafeNaturalNumber } from '@/decorators/is-safe-integer.decorator'
 import { SetAclCrudField } from '@/decorators/set-acl-crud-field.decorator'
+import { IsCustomURL } from '@/decorators/is-custom-url.decorator'
 
 export class NotificationConfig<T extends PushType = PushType> implements MetaPushConfig<PushType> {
 
@@ -15,10 +16,24 @@ export class NotificationConfig<T extends PushType = PushType> implements MetaPu
     @IsNotEmpty()
     type: T
 
-    @ApiProperty({ title: '推送配置', description: '具体配置请参考 push-all-in-one 文档', example: { SCTKEY: '' } })
+    @ApiProperty({ title: '推送配置', description: '具体配置请参考 push-all-in-one 文档，在线生成配置：https://push.cmyr.dev', example: { SERVER_CHAN_TURBO_SENDKEY: '' } })
     @IsNotEmpty()
     @IsObject()
-    config: PushConfig[T]
+    config: MetaPushConfig<T>['config']
+
+    @ApiProperty({
+        title: '附加参数',
+        description: '具体附加参数请参考 push-all-in-one 文档，在线生成配置：https://push.cmyr.dev',
+        example: {
+            short: '1',
+            noip: true,
+            channel: '1',
+            openid: '1',
+        },
+    })
+    @IsOptional()
+    @IsObject()
+    option: MetaPushConfig<T>['option']
 
     @ApiProperty({ title: '合并推送', description: '在一次轮询中检测到多条 RSS 更新，将合并为一条推送', example: true })
     @IsBoolean({})
@@ -53,5 +68,32 @@ export class NotificationConfig<T extends PushType = PushType> implements MetaPu
     @ApiProperty({ title: '最大长度', description: '一次推送文本的最大长度。默认值为 4096', example: 4096 })
     @IsSafeNaturalNumber(65535)
     maxLength: number
+
+    @SetAclCrudField({
+        labelWidth: 105,
+    })
+    @ApiProperty({ title: '是否远程推送', description: '如果为否，则通过在本地调用 push-all-in-one 进行推送，可用性取决于本机网络；如果为是，则通过调用远程的 push-all-in-cloud 进行推送，适合服务器无法访问外网的情况', example: false })
+    @IsBoolean({})
+    isRemotePush: boolean
+
+    @SetAclCrudField({
+        labelWidth: 105,
+    })
+    @ApiProperty({ title: '远程推送地址', description: '远程推送请设置本字段为 push-all-in-cloud 服务的地址。参考：https://github.com/CaoMeiYouRen/push-all-in-cloud', example: '' })
+    @IsOptional()
+    @IsCustomURL()
+    @Length(0, 1024)
+    @ValidateIf((o) => o.isRemotePush === true)
+    remotePushUrl?: string
+
+
+    @SetAclCrudField({
+        labelWidth: 105,
+    })
+    @ApiProperty({ title: '远程推送KEY', description: '请替换为真实的 AUTH_FORWARD_KEY', example: '' })
+    @IsOptional()
+    @Length(0, 1024)
+    @ValidateIf((o) => o.isRemotePush === true)
+    remoteForwardKey?: string
 
 }

@@ -5,11 +5,13 @@ import * as winston from 'winston'
 import DailyRotateFile from 'winston-daily-rotate-file'
 import { Request } from 'express'
 import { isNumberString } from 'class-validator'
+import { Logger, QueryRunner } from 'typeorm'
+import { LoggerService } from '@nestjs/common'
 import { timeFormat } from '@/utils/helper'
-import { __DEV__, __PROD__ } from '@/app.config'
+import { __PROD__, LOG_LEVEL } from '@/app.config'
 import { User } from '@/db/models/user.entity'
 
-const logDir = path.resolve('logs')
+export const logDir = path.resolve('logs')
 
 morgan.token('user', (req: Request) => {
     const user = req.user as User
@@ -47,7 +49,7 @@ const stream: StreamOptions = {
                 log.status = Number(log.status)
             }
             const { ip, method, url, httpVersion, status, responseTime, requestId } = log
-            if (__PROD__ && /(\/assets|\/vite\.svg)/.test(url)) { // 生产环境忽略静态文件日志
+            if (/(\/assets|\/vite\.svg|favicon\.ico)/.test(url)) { // 生产环境忽略静态文件日志
                 return
             }
             const message = `${ip} - "${requestId}" "${method} ${url}" "HTTP/${httpVersion}" ${status} - ${responseTime} ms`
@@ -67,6 +69,7 @@ export const jsonLogger = morgan('json', { stream })
 const format = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSSZ' }),
     // winston.format.ms(),
+    winston.format.splat(),
     nestWinstonModuleUtilities.format.nestLike('rss-impact-server', {
         colors: false,
         prettyPrint: true,
@@ -76,7 +79,7 @@ const format = winston.format.combine(
 const dailyRotateFileOption = {
     dirname: logDir,
     datePattern: 'YYYY-MM-DD',
-    zippedArchive: false,
+    zippedArchive: __PROD__, // 如果是生产环境，压缩日志文件
     maxSize: '20m',
     maxFiles: '31d',
     format,
@@ -84,13 +87,14 @@ const dailyRotateFileOption = {
 }
 
 export const winstonLogger = WinstonModule.createLogger({
-    level: __DEV__ ? 'silly' : 'http',
+    level: LOG_LEVEL,
     exitOnError: false,
     transports: [
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
                 winston.format.ms(),
+                winston.format.splat(),
                 nestWinstonModuleUtilities.format.nestLike('rss-impact-server', {
                     colors: true,
                     prettyPrint: true,
@@ -124,3 +128,61 @@ export const winstonLogger = WinstonModule.createLogger({
 })
 
 export const logger = winstonLogger
+
+function parametersFormat(parameters: any[]) {
+    if (!parameters?.length) {
+        return ''
+    }
+    return `\n${parameters.map((parameter) => {
+        if (parameter instanceof Date) {
+            return `'${parameter.toISOString()}'`
+        }
+        if (typeof parameter === 'string') {
+            return `'${parameter}'`
+        }
+        return `${parameter}`
+    }).join(', ')}`
+}
+
+export class CustomLogger implements Logger {
+
+    constructor(private readonly loggerService: LoggerService) { }
+
+    logQuery(query: string, parameters?: any[]): any {
+        this.loggerService.verbose(`Query: ${query}${parametersFormat(parameters)}`)
+    }
+
+    logQueryError(error: string | Error, query: string, parameters?: any[]): any {
+        this.loggerService.error(`Query Error: ${error}\nQuery: ${query}${parametersFormat(parameters)}`)
+    }
+
+    logQuerySlow(time: number, query: string, parameters?: any[]): any {
+        this.loggerService.warn(`Slow Query (${time}ms): ${query}${parametersFormat(parameters)}`)
+    }
+
+    logSchemaBuild(message: string): any {
+        this.loggerService.verbose(`Schema Build: ${message}`)
+    }
+
+    logMigration(message: string): any {
+        this.loggerService.log(`Migration: ${message}`)
+    }
+
+    log(level: 'log' | 'info' | 'warn', message: any, queryRunner?: QueryRunner): any {
+        switch (level) {
+            case 'log':
+                this.loggerService.log(message, queryRunner)
+                break
+            case 'info':
+                this.loggerService.log(message, queryRunner)
+                break
+            case 'warn':
+                this.loggerService.warn(message, queryRunner)
+                break
+            default:
+                this.loggerService.verbose(message, queryRunner)
+                break
+        }
+    }
+
+}

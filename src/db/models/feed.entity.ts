@@ -1,12 +1,13 @@
 import { Entity, JoinTable, ManyToMany, ManyToOne, OneToMany } from 'typeorm'
 import { ApiProperty, OmitType, PartialType, PickType } from '@nestjs/swagger'
-import { IsArray, IsBoolean, IsDefined, IsIn } from 'class-validator'
+import { IsArray, IsBoolean, IsDefined, IsIn, IsOptional } from 'class-validator'
 import { Type } from 'class-transformer'
 import { AclBase } from './acl-base.entity'
 import { Category } from './category.entity'
 import { Article } from './article.entity'
 import { Hook } from './hook.entity'
 import { ProxyConfig } from './proxy-config.entity'
+import { CustomQuery } from './custom-query.entity'
 import { IsId } from '@/decorators/is-id.decorator'
 import { SetAclCrudField } from '@/decorators/set-acl-crud-field.decorator'
 import { RssLabelList } from '@/constant/rss-cron'
@@ -14,6 +15,7 @@ import { FindPlaceholderDto } from '@/models/find-placeholder.dto'
 import { IsSafeNaturalNumber } from '@/decorators/is-safe-integer.decorator'
 import { IsCustomURL } from '@/decorators/is-custom-url.decorator'
 import { CustomColumn } from '@/decorators/custom-column.decorator'
+import { DEFAULT_FEED_CRON } from '@/app.config'
 
 /**
  * RSS 订阅表
@@ -77,7 +79,7 @@ export class Feed extends AclBase {
     @IsIn(RssLabelList.map((e) => e.value))
     @CustomColumn({
         length: 256,
-        default: 'EVERY_10_MINUTES',
+        default: DEFAULT_FEED_CRON,
     })
     cron: string
 
@@ -172,13 +174,32 @@ export class Feed extends AclBase {
             label: 'name',
             value: 'id',
         },
+        value: [],
     })
     @ApiProperty({ title: 'Hook列表', example: [], type: () => [Hook] })
     @Type(() => Hook)
     @IsArray()
+    @IsOptional()
     @ManyToMany(() => Hook, (hook) => hook.feeds)
     @JoinTable()
     hooks: Hook[]
+
+    @SetAclCrudField({
+        type: 'select',
+        multiple: true,
+        dicUrl: '/custom-query/dicData',
+        props: {
+            label: 'name',
+            value: 'id',
+        },
+        value: [],
+    })
+    @ApiProperty({ title: '自定义查询列表', example: [], type: () => [CustomQuery] })
+    @Type(() => CustomQuery)
+    @IsArray()
+    @IsOptional()
+    @ManyToMany(() => CustomQuery, (customQuery) => customQuery.feeds) // JoinTable 在 CustomQuery 这边
+    customQueries: CustomQuery[]
 
 }
 
@@ -187,8 +208,10 @@ export class CreateFeed extends OmitType(Feed, ['id', 'createdAt', 'updatedAt'] 
 export class UpdateFeed extends PartialType(OmitType(Feed, ['createdAt', 'updatedAt'] as const)) { }
 
 export class FindFeed extends FindPlaceholderDto<Feed> {
+
     @ApiProperty({ type: () => [Feed] })
     declare data: Feed[]
+
 }
 
 export class QuickCreateFeed extends PickType(Feed, ['url', 'cron', 'isEnabled', 'categoryId', 'hooks'] as const) { }

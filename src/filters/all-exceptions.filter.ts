@@ -6,6 +6,7 @@ import {
     Logger,
 } from '@nestjs/common'
 import { Response, Request } from 'express'
+import { SentryExceptionCaptured } from '@sentry/nestjs'
 import { HttpError } from '@/models/http-error'
 import { ErrorMessageList } from '@/constant/error-message-list'
 import { HttpStatusCode } from '@/constant/http-status-code'
@@ -27,6 +28,7 @@ export class AllExceptionsFilter<T extends Error> implements ExceptionFilter {
 
     private readonly logger = new Logger(AllExceptionsFilter.name)
 
+    @SentryExceptionCaptured()
     catch(e: T, host: ArgumentsHost) {
         const ctx = host.switchToHttp()
         const response = ctx.getResponse<Response>()
@@ -39,12 +41,11 @@ export class AllExceptionsFilter<T extends Error> implements ExceptionFilter {
             message = e.message
         } else if (e instanceof HttpException) {
             statusCode = e.getStatus()
-            const res = e.getResponse()
+            const res: any = e.getResponse()
             if (statusCode === HttpStatusCode.NOT_FOUND) { // 404
                 message = e.message
-
-            } else if (Array.isArray(res['message'])) {
-                message = res['message'].join(', ')
+            } else if (Array.isArray(res.message)) {
+                message = res.message.join(', ')
             } else {
                 message = ErrorMessageList.get(statusCode) || e.message
             }
@@ -68,4 +69,5 @@ export class AllExceptionsFilter<T extends Error> implements ExceptionFilter {
                 }))
         }
     }
+
 }

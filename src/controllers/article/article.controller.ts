@@ -39,6 +39,7 @@ import { DATABASE_TYPE } from '@/app.config'
 @ApiTags('article')
 @Controller('article')
 export class ArticleController {
+
     constructor(
         @InjectRepository(Article) private readonly repository: Repository<Article>,
     ) { }
@@ -58,11 +59,12 @@ export class ArticleController {
             })
             .select(enclosureType, 'type')// 选择要 distinct 的列
             .distinct(true) // 启用 distinct
-            .getRawMany() as { type: string }[]
+            .getRawMany()
         return data.filter((e) => e.type).map((e) => ({
             label: e.type,
             value: e.type,
         }))
     }
+
 }
 

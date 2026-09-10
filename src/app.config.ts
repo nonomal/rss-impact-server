@@ -38,6 +38,8 @@ export const TZ = env.TZ || 'Asia/Shanghai'
 
 export const TIMEOUT = Number(env.TIMEOUT || 10 * 1000)
 
+export const LOG_LEVEL = process.env.LOG_LEVEL || (__DEV__ ? 'silly' : 'http')
+
 // 每页最大查询条数
 export const PAGE_LIMIT_MAX = Number(env.PAGE_LIMIT_MAX || 1000)
 
@@ -103,7 +105,52 @@ export const DATABASE_SCHEMA = env.DATABASE_SCHEMA || 'public'
 
 export const DATABASE_SSL = env.DATABASE_SSL === 'true'
 
+export const DATABASE_INDEX_LENGTH = Number(env.DATABASE_INDEX_LENGTH || 1024)
+// 控制 TypeORM 是否自动同步表结构。未配置时由各数据库类型使用安全默认值。
+export const DATABASE_SYNCHRONIZE = env.DATABASE_SYNCHRONIZE === undefined
+    ? undefined
+    : env.DATABASE_SYNCHRONIZE === 'true'
+
 export const SESSION_MAX_AGE = env.SESSION_MAX_AGE
 
 export const ENABLE_ORIGIN_LIST = env.ENABLE_ORIGIN_LIST?.split(',')?.map((e) => e?.trim())?.filter(Boolean)
 
+export const ARTICLE_LIMIT_MAX = Number(env.ARTICLE_LIMIT_MAX || 1000)
+
+export const DEFAULT_FEED_CRON = env.DEFAULT_FEED_CRON || 'EVERY_10_MINUTES'
+
+export const SENTRY_DSN = env.SENTRY_DSN || ''
+
+// auth0 配置
+export const AUTH0_BASE_URL = env.AUTH0_BASE_URL || ''
+export const AUTH0_CLIENT_ID = env.AUTH0_CLIENT_ID || ''
+export const AUTH0_SECRET = env.AUTH0_SECRET || ''
+export const AUTH0_ISSUER_BASE_URL = env.AUTH0_ISSUER_BASE_URL || ''
+export const ENABLE_AUTH0 = Boolean(AUTH0_BASE_URL && AUTH0_CLIENT_ID && AUTH0_SECRET && AUTH0_ISSUER_BASE_URL)
+
+// OIDC 配置 - 兼容标准 OIDC 服务端
+export const OIDC_RESPONSE_TYPE = env.OIDC_RESPONSE_TYPE || 'id_token' // 默认使用 Auth0 的 id_token 模式
+export const OIDC_RESPONSE_MODE = env.OIDC_RESPONSE_MODE || 'form_post' // 默认使用 Auth0 的 form_post 模式
+export const OIDC_SCOPE = env.OIDC_SCOPE || 'openid profile email'
+export const OIDC_AUTO_DETECT = env.OIDC_AUTO_DETECT === 'true' // 是否自动检测 OIDC 服务端类型
+export const OIDC_REDIRECT_URL = env.OIDC_REDIRECT_URL || `${BASE_URL}/api/auth/callback`
+
+// 禁用账号密码登录，仅在配置 Auth0 后生效
+export const DISABLE_PASSWORD_LOGIN = env.DISABLE_PASSWORD_LOGIN === 'true' && ENABLE_AUTH0
+// 禁用账号密码注册，仅在配置 Auth0 后生效
+export const DISABLE_PASSWORD_REGISTER = env.DISABLE_PASSWORD_REGISTER === 'true' && ENABLE_AUTH0
+
+// 启用 demo 账号
+export const ENABLE_DEMO_ACCOUNT = env.ENABLE_DEMO_ACCOUNT === 'true'
+
+// 允许的邮箱域名
+export const ALLOWED_EMAIL_DOMAINS = env.ALLOWED_EMAIL_DOMAINS?.split(',')?.map((e) => e?.trim())?.filter(Boolean)
+
+// 启用邮箱校验
+export const ENABLE_EMAIL_VALIDATION = env.ENABLE_EMAIL_VALIDATION === 'true' || Boolean(ALLOWED_EMAIL_DOMAINS?.length)
+
+// 最大错误次数
+export const MAX_ERROR_COUNT = Number(env.MAX_ERROR_COUNT || 10)
+
+// 禁用不包含任何 Hook 和 自定义查询的订阅
+export const DISABLE_EMPTY_FEEDS = env.DISABLE_EMPTY_FEEDS === 'true'

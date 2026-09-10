@@ -1,16 +1,14 @@
-import os from 'os'
 import path from 'path'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, In, LessThan, MoreThanOrEqual, Between } from 'typeorm'
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
+import { Repository, In, LessThan, MoreThanOrEqual, Between, DataSource } from 'typeorm'
 import { CronJob } from 'cron'
 import { differenceWith, flattenDeep, pick, random, isEqual, pickBy, uniq } from 'lodash'
 import XRegExp from 'xregexp'
 import dayjs, { Dayjs } from 'dayjs'
 import fs from 'fs-extra'
 import md5 from 'md5'
-import FileType from 'file-type'
 import { QBittorrent } from '@cao-mei-you-ren/qbittorrent'
 import { plainToInstance } from 'class-transformer'
 import parseTorrent, { Instance, toMagnetURI } from 'parse-torrent'
@@ -19,12 +17,12 @@ import OpenAI from 'openai'
 import ms from 'ms'
 import { isMagnetURI } from 'class-validator'
 import rssParserUtils from '@cao-mei-you-ren/rss-parser/lib/utils'
-import PQueue from 'p-queue'
+import { CacheService } from '../cache/cache.service'
 import { ResourceService } from '@/services/resource/resource.service'
 import { Feed } from '@/db/models/feed.entity'
 import { RssCronList } from '@/constant/rss-cron'
-import { __DEV__, AI_LIMIT_MAX, ARTICLE_SAVE_DAYS, BIT_TORRENT_LIMIT_MAX, DOWNLOAD_LIMIT_MAX, HOOK_LIMIT_MAX, LOG_SAVE_DAYS, NOTIFICATION_LIMIT_MAX, RESOURCE_DOWNLOAD_PATH, RESOURCE_SAVE_DAYS, REVERSE_TRIGGER_LIMIT, RSS_LIMIT_MAX, TZ } from '@/app.config'
-import { getAllUrls, download, getMd5ByStream, timeFormat, splitString, isHttpURL, to, limitToken, getTokenLength, splitStringByToken, retryBackoff, parseDataSize, dataFormat, getFullText, getPriority } from '@/utils/helper'
+import { __DEV__, ARTICLE_LIMIT_MAX, ARTICLE_SAVE_DAYS, DATABASE_TYPE, DISABLE_EMPTY_FEEDS, LOG_SAVE_DAYS, MAX_ERROR_COUNT, RESOURCE_DOWNLOAD_PATH, RESOURCE_SAVE_DAYS, REVERSE_TRIGGER_LIMIT, TZ } from '@/app.config'
+import { getAllUrls, download, getMd5ByStream, timeFormat, isHttpURL, to, limitToken, getTokenLength, splitStringByToken, retryBackoff, parseDataSize, dataFormat, getFullText, getPriority, splitStringWithLineBreak, sleep, randomSleep } from '@/utils/helper'
 import { ArticleFormatoption, articleItemFormat, articlesFormat, filterArticles, getArticleContent, rssItemToArticle, rssParserString } from '@/utils/rss-helper'
 import { Article } from '@/db/models/article.entity'
 import { Hook } from '@/db/models/hook.entity'
@@ -43,14 +41,11 @@ import { AIConfig } from '@/models/ai-config'
 import { HttpError } from '@/models/http-error'
 import { RegularConfig } from '@/models/regular-config'
 import { DailyCount } from '@/db/models/daily-count.entity'
-
-const removeQueue = new PQueue({ concurrency: Math.min(os.cpus().length, 8) }) // 删除文件并发数
-const rssQueue = new PQueue({ concurrency: RSS_LIMIT_MAX }) // RSS 请求并发数
-const hookQueue = new PQueue({ concurrency: HOOK_LIMIT_MAX }) // Hook 并发数
-const downloadQueue = new PQueue({ concurrency: DOWNLOAD_LIMIT_MAX }) // 下载并发数限制
-const aiQueue = new PQueue({ concurrency: AI_LIMIT_MAX }) // AI 总结并发数
-const bitTorrentQueue = new PQueue({ concurrency: BIT_TORRENT_LIMIT_MAX }) // BitTorrent 并发数
-const notificationQueue = new PQueue({ concurrency: NOTIFICATION_LIMIT_MAX }) // 推送 并发数
+import { logDir } from '@/middlewares/logger.middleware'
+import { rssQueue, hookQueue, notificationQueue, downloadQueue, bitTorrentQueue, aiQueue, removeQueue } from '@/utils/queue'
+import { CustomQuery } from '@/db/models/custom-query.entity'
+import { Category } from '@/db/models/category.entity'
+import { ProxyConfig } from '@/db/models/proxy-config.entity'
 
 @Injectable()
 export class TasksService implements OnApplicationBootstrap {
@@ -61,12 +56,18 @@ export class TasksService implements OnApplicationBootstrap {
     constructor(
         private readonly scheduler: SchedulerRegistry,
         private readonly resourceService: ResourceService,
+        private readonly cacheService: CacheService,
+        @InjectDataSource() private readonly dataSource: DataSource,
         @InjectRepository(Feed) private readonly feedRepository: Repository<Feed>,
         @InjectRepository(Article) private readonly articleRepository: Repository<Article>,
         @InjectRepository(Resource) private readonly resourceRepository: Repository<Resource>,
         @InjectRepository(WebhookLog) private readonly webhookLogRepository: Repository<WebhookLog>,
         @InjectRepository(User) private readonly userRepository: Repository<User>,
         @InjectRepository(DailyCount) private readonly dailyCountRepository: Repository<DailyCount>,
+        @InjectRepository(CustomQuery) private readonly customQueryRepository: Repository<CustomQuery>,
+        @InjectRepository(Category) private readonly categoryRepository: Repository<Category>,
+        @InjectRepository(Hook) private readonly hookRepository: Repository<Hook>,
+        @InjectRepository(ProxyConfig) private readonly proxyConfigRepository: Repository<ProxyConfig>,
     ) { }
 
     async onApplicationBootstrap() {
@@ -76,25 +77,35 @@ export class TasksService implements OnApplicationBootstrap {
 
     private async fixDatabase() {
         try {
-            // // 修复 缺失的 统计数据
-            // const maxDay = Math.max(ARTICLE_SAVE_DAYS, RESOURCE_SAVE_DAYS, LOG_SAVE_DAYS)
-            // // 往前回溯的天数
-            // const startDay = dayjs().add(-maxDay, 'days')
-
-            // for (let i = 0; i < maxDay; i++) {
-            //     const currentDay = startDay.add(i, 'days')
-            //     const date = currentDay.format('YYYY-MM-DD')
-            //     const dailyCounts = await this.dailyCountRepository.find({ where: { date } })
-            //     if (dailyCounts?.length > 1) { // 删除重复的日志
-            //         dailyCounts.shift()// 排除第一个
-            //         await this.dailyCountRepository.delete(dailyCounts.map((e) => e.id))
-            //     }
-            //     await this.dailyCountByDate(currentDay)
-            // }
-            // this.logger.log(`统计数据同步完毕，同步天数：${maxDay}`)
+            if (DATABASE_TYPE === 'sqlite') {
+                const result = await this.dataSource.query('PRAGMA integrity_check;')
+                const integrity = result?.[0]?.integrity_check
+                if (integrity !== 'ok') {
+                    this.logger.error(`SQLite 完整性检查失败: ${integrity}`)
+                } else {
+                    this.logger.log('SQLite 完整性检查通过')
+                }
+            }
         } catch (error) {
             this.logger.error(error?.message, error?.stack)
         }
+    }
+
+    private async retryDbWrite<T>(operation: () => Promise<T>, retries = 5): Promise<T> {
+        return retryBackoff(operation, {
+            maxRetries: retries,
+            initialInterval: 100,
+            maxInterval: 30000,
+            shouldRetry: (error: Error) => {
+                if (error?.message?.includes('disk I/O error')
+                    || error?.message?.includes('SQLITE_BUSY')
+                    || error?.message?.includes('SQLITE_IOERR')) {
+                    this.logger.warn(`数据库写入失败，正在重试: ${error.message}`)
+                    return true
+                }
+                return false
+            },
+        })
     }
 
     private getAllFeeds() {
@@ -136,7 +147,17 @@ export class TasksService implements OnApplicationBootstrap {
     async getRssContent(feed: Feed, rss?: Record<string, any> & Parser.Output<Record<string, any>>) {
         const { id: fid, url, userId: uid, isFullText = false } = feed
         let proxyUrl = feed.proxyConfig?.url
+        const key = `rss:${fid}:errorCount`
         try {
+            // 判断错误次数
+            const errorCount = await this.cacheService.get<number>(key) || 0
+            if (errorCount > MAX_ERROR_COUNT) {
+                feed.isEnabled = false
+                await this.feedRepository.save(feed)
+                await this.disableFeedTask(feed)
+                this.logger.warn(`订阅 id: ${feed.id} 错误次数已达 ${errorCount} 次，已停止订阅！`)
+                return
+            }
             if (!rss) {
                 if (feed.proxyConfigId && !feed.proxyConfig) {
                     const newFeed = await this.feedRepository.findOne({ where: { id: fid }, relations: ['proxyConfig'] })
@@ -164,6 +185,9 @@ export class TasksService implements OnApplicationBootstrap {
                     rss = await rssParserString(resp)
                 }
             }
+            if (rss) { // 如果成功获取了到 rss 内容，则清空错误计数
+                await this.cacheService.set(key, 0, ms('1 d')) // 重置错误计数
+            }
             if (!Array.isArray(rss?.items)) {
                 return
             }
@@ -184,6 +208,7 @@ export class TasksService implements OnApplicationBootstrap {
                 },
                 select: ['guid'],
             })
+            const date = dayjs().hour(0).minute(0).second(0).millisecond(0).add(-ARTICLE_SAVE_DAYS, 'day')
             let diffArticles = differenceWith(rss.items, existingArticles, (a, b) => a.guid === b.guid)
                 .map((item) => {
                     const article = rssItemToArticle(item)
@@ -191,7 +216,8 @@ export class TasksService implements OnApplicationBootstrap {
                     article.userId = uid
                     article.author = article.author || rss.author
                     return this.articleRepository.create(article)
-                })
+                }) // 过滤 pubDate 在 ARTICLE_SAVE_DAYS 之前的 记录
+                .filter((article) => dayjs(article.pubDate).isAfter(date))
             if (!diffArticles?.length) {
                 return
             }
@@ -205,21 +231,34 @@ export class TasksService implements OnApplicationBootstrap {
                             this.logger.error(error?.message, error?.stack)
                             return article
                         }
-                        article.content = fullText.content || article.content // 仅正文优先使用抓取的内容
-                        article.contentSnippet = rssParserUtils.getSnippet(article.content) || article.contentSnippet // 更新 纯文本格式
-                        article.author = article.author || fullText.author
-                        article.summary = article.summary || fullText.excerpt
-                        // 如果 pubDate 不存在，且 date_published 是有效日期，则填补日期
-                        article.pubDate = article.pubDate || (dayjs(fullText.date_published).isValid() ? dayjs(fullText.date_published).toDate() : undefined)
+                        // 如果抓取到的文本内容比原文还短，则认定为抓取失败
+                        if (fullText.content?.length < article.content?.length) {
+                            article.content = fullText.content || article.content // 仅正文优先使用抓取的内容
+                            article.contentSnippet = rssParserUtils.getSnippet(article.content) || article.contentSnippet // 更新 纯文本格式
+                            article.author = article.author || fullText.author
+                            article.summary = article.summary || fullText.excerpt
+                            // 如果 pubDate 不存在，且 date_published 是有效日期，则填补日期
+                            article.pubDate = article.pubDate || (dayjs(fullText.date_published).isValid() ? dayjs(fullText.date_published).toDate() : undefined)
+                        }
                     }
                     return article
                 }))
             }
-            const newArticles = await this.articleRepository.save(diffArticles)
+            const newArticles = await this.retryDbWrite(() => this.articleRepository.save(diffArticles))
             this.triggerHooks(feed, newArticles)
         } catch (error) {
             this.logger.error(`url: ${url}\nproxyUrl: ${proxyUrl}\nmessage: ${error?.message}`, error?.stack)
             this.reverseTriggerHooks(feed, error)
+
+            // 增加错误计数
+            const errorCount = await this.cacheService.get<number>(key) || 0
+            this.cacheService.set(key, errorCount + 1, ms('1 d')) // 1 天内错误超过 10 次，则禁用订阅
+            if (errorCount > MAX_ERROR_COUNT) {
+                feed.isEnabled = false
+                await this.feedRepository.save(feed)
+                await this.disableFeedTask(feed)
+                this.logger.log(`订阅 id: ${feed.id} 已被禁用！`)
+            }
         }
     }
 
@@ -246,7 +285,7 @@ export class TasksService implements OnApplicationBootstrap {
         // 拉取最新的 hook 配置
         // ；如果有 反转触发下限，则大于 反转触发下限 才触发 && (hook.reverseLimit ? hook.reverseLimit > count : true)
         const hooks = (await this.feedRepository.findOne({ where: { id: feed.id }, relations: ['proxyConfig', 'hooks', 'hooks.proxyConfig'], select: ['hooks'] }))
-            ?.hooks   // 处理反转触发的 Hook；只触发 notification/webhook 类型的
+            ?.hooks // 处理反转触发的 Hook；只触发 notification/webhook 类型的
             ?.filter((hook) => hook.isReversed && ['notification', 'webhook'].includes(hook.type))
 
         if (!hooks?.length) {
@@ -255,8 +294,8 @@ export class TasksService implements OnApplicationBootstrap {
         const userId = feed.userId
         const user = await this.userRepository.findOne({ where: { id: userId } })
         const isAdmin = user?.roles?.includes(Role.admin) // 只有 admin 用户可以看到 堆栈
-        await Promise.allSettled(hooks
-            .map((hook) => hookQueue.add(async () => {
+        hooks.forEach((hook) => hookQueue.add(async () => {
+            try {
                 switch (hook.type) {
                     case 'notification':
                         await this.reverseNotificationHook(hook, feed, error, isAdmin)
@@ -275,10 +314,12 @@ export class TasksService implements OnApplicationBootstrap {
                     default:
                         this.logger.warn(`${hook.type} 类型的 Hook 无法反转触发！`)
                 }
-            }, {
-                timeout: ms('10 m'),
-            }).catch((error2) => this.logger.error(error2?.message, error2?.stack))),
-        )
+            } catch (error2) {
+                this.logger.error(error2?.message, error2?.stack)
+            }
+        }, {
+            timeout: ms('10 m'),
+        }))
     }
 
     // 反转触发通知
@@ -294,14 +335,6 @@ export class TasksService implements OnApplicationBootstrap {
 发生时间：${timeFormat()}`
         if (isMarkdown) {
             desp = desp.replace(/\n/g, '\n\n') // 替换为markdown下的换行
-        }
-        // 处理 URL 可能会被风控的问题
-        const linkRegex = /https?:\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]/gi
-        const links = desp.match(linkRegex)
-        if (links?.length) {
-            links.forEach((link) => {
-                desp = desp.replace(link, link.replaceAll('.', '\u200d.\u200d')) // 在点号上添加零宽字符
-            })
         }
         await notificationQueue.add(() => this.notification(hook, feed, [], title, desp))
     }
@@ -326,23 +359,22 @@ export class TasksService implements OnApplicationBootstrap {
         try {
             this.logger.log(`正在执行推送渠道 ${config.type}`)
             const resp = await runPushAllInOne(title, desp, config, proxyUrl)
-            await this.webhookLogRepository.save(this.webhookLogRepository.create({
-                ...webhookLog,
-                ...pick(resp, ['data', 'statusText', 'headers']),
+            Object.assign(webhookLog, pick(resp, ['data', 'statusText', 'headers']), {
                 status: 'success',
                 statusCode: resp.status,
-            }))
+            })
+            await this.retryDbWrite(() => this.webhookLogRepository.save(webhookLog))
             this.logger.log(`执行推送渠道 ${config.type} 成功`)
         } catch (error) {
             this.logger.error(error?.message, error?.stack)
-            await this.webhookLogRepository.save(this.webhookLogRepository.create({
-                ...webhookLog,
+            Object.assign(webhookLog, {
                 data: error?.response?.data || error?.response || error,
                 statusCode: 500,
                 statusText: 'Internal Server Error',
                 headers: error?.response?.headers || {},
                 status: 'fail',
-            }))
+            })
+            await this.retryDbWrite(() => this.webhookLogRepository.save(webhookLog))
         }
     }
 
@@ -362,39 +394,39 @@ export class TasksService implements OnApplicationBootstrap {
         if (!hooks?.length || !articles?.length) {
             return
         }
-        await Promise.allSettled(hooks
-            .map((hook) => {
-                // 计算 Hook 优先级
-                let priority = getPriority(1e4)
-                switch (hook.type) {
-                    case 'regular': {
-                        priority += 1e10
-                        break
-                    }
-                    case 'notification': {
-                        priority += 1e9
-                        break
-                    }
-                    case 'webhook': {
-                        priority += 1e8
-                        break
-                    }
-                    case 'aiSummary': {
-                        priority += 1e7
-                        break
-                    }
-                    case 'download': {
-                        priority += 1e6
-                        break
-                    }
-                    case 'bitTorrent': {
-                        priority += 1e5
-                        break
-                    }
-                    default:
-                        break
+        hooks.forEach((hook) => {
+            // 计算 Hook 优先级
+            let priority = getPriority(1e4)
+            switch (hook.type) {
+                case 'regular': {
+                    priority += 1e10
+                    break
                 }
-                return hookQueue.add(async () => {
+                case 'notification': {
+                    priority += 1e9
+                    break
+                }
+                case 'webhook': {
+                    priority += 1e8
+                    break
+                }
+                case 'aiSummary': {
+                    priority += 1e7
+                    break
+                }
+                case 'download': {
+                    priority += 1e6
+                    break
+                }
+                case 'bitTorrent': {
+                    priority += 1e5
+                    break
+                }
+                default:
+                    break
+            }
+            return hookQueue.add(async () => {
+                try {
                     __DEV__ && this.logger.debug(`正在触发 Hook ${hook.name}`)
                     const filteredArticles = filterArticles(articles, hook)
                     if (!filteredArticles?.length) {
@@ -428,12 +460,14 @@ export class TasksService implements OnApplicationBootstrap {
                         default:
                             this.logger.warn('未匹配到任何类型的Hook！')
                     }
-                }, {
-                    priority,
-                    timeout: ms('10 m'),
-                })
-            }),
-        )
+                } catch (error) {
+                    this.logger.error(error?.message, error?.stack)
+                }
+            }, {
+                priority,
+                timeout: ms('10 m'),
+            })
+        })
     }
 
     private async notificationHook(hook: Hook, feed: Feed, articles: Article[]) {
@@ -467,7 +501,7 @@ export class TasksService implements OnApplicationBootstrap {
             // 合并推送
             const desp = articlesFormat(articles, articleFormatoption)
             // 如果过长，则考虑分割推送，但至多不超过 5 条
-            const chunks = splitString(desp, maxLength).slice(0, 5) // 分割字符串
+            const chunks = splitStringWithLineBreak(desp, maxLength).slice(0, 5) // 分割字符串
             chunks.forEach((chunk) => {
                 notifications.push({
                     title,
@@ -480,7 +514,7 @@ export class TasksService implements OnApplicationBootstrap {
             articles.forEach((article) => {
                 const { text: desp, title: itemTitle } = articleItemFormat(article, articleFormatoption)
                 // 如果过长，则考虑分割推送，但至多不超过 3 条
-                const chunks = splitString(desp, maxLength).slice(0, 3) // 分割字符串
+                const chunks = splitStringWithLineBreak(desp, maxLength).slice(0, 3) // 分割字符串
                 chunks.forEach((chunk) => {
                     notifications.push({
                         title: itemTitle,
@@ -491,11 +525,9 @@ export class TasksService implements OnApplicationBootstrap {
             })
         }
 
-        await Promise.allSettled(notifications
-            .map((notification) => notificationQueue.add(async () => this.notification(hook, feed, notification.articles, notification.title, notification.desp), {
-                timeout: ms('10 m'),
-            })),
-        )
+        notifications.forEach((notification) => notificationQueue.add(async () => this.notification(hook, feed, notification.articles, notification.title, notification.desp), {
+            timeout: ms('10 m'),
+        }))
     }
 
     private async webhook(hook: Hook, feed: Feed, data: Article[] | any) {
@@ -516,25 +548,24 @@ export class TasksService implements OnApplicationBootstrap {
                 ...config,
                 proxyUrl,
                 timeout: (config?.timeout || 60) * 1000,
-                data: data as any,
+                data,
             })
-            await this.webhookLogRepository.save(this.webhookLogRepository.create({
-                ...webhookLog,
-                ...pick(resp, ['data', 'statusText', 'headers']),
+            Object.assign(webhookLog, pick(resp, ['data', 'statusText', 'headers']), {
                 status: 'success',
                 statusCode: resp.status,
-            }))
+            })
+            await this.retryDbWrite(() => this.webhookLogRepository.save(webhookLog))
             this.logger.log(`触发 Webhook: ${config?.url} 成功`)
         } catch (error) {
             this.logger.error(error?.message, error?.stack)
-            await this.webhookLogRepository.save(this.webhookLogRepository.create({
-                ...webhookLog,
+            Object.assign(webhookLog, {
                 data: error?.response?.data || error?.response || error,
                 statusCode: 500,
                 statusText: 'Internal Server Error',
                 headers: error?.response?.headers || {},
                 status: 'fail',
-            }))
+            })
+            await this.retryDbWrite(() => this.webhookLogRepository.save(webhookLog))
         }
     }
 
@@ -554,7 +585,7 @@ export class TasksService implements OnApplicationBootstrap {
         if (!await fs.pathExists(dirPath)) {
             await fs.mkdir(dirPath)
         }
-        await Promise.allSettled(allUrls.map((url) => downloadQueue.add(async () => {
+        allUrls.forEach((url) => downloadQueue.add(async () => {
             const ext = path.extname(url)
             const hashname = md5(url)
             const filename = hashname + ext
@@ -589,7 +620,8 @@ export class TasksService implements OnApplicationBootstrap {
                 __DEV__ && this.logger.debug(`文件 ${filename} 已存在，跳过下载`)
                 // 同步到数据库
                 const stat = await fs.stat(filepath)
-                const { mime } = await FileType.fromFile(filepath)
+                const { fileTypeFromFile } = await import('file-type')
+                const { mime } = await fileTypeFromFile(filepath)
                 const hash = await getMd5ByStream(filepath)
                 const newResource = this.resourceRepository.create({
                     url,
@@ -635,10 +667,9 @@ export class TasksService implements OnApplicationBootstrap {
             } finally {
                 await this.resourceRepository.save(newResource)
             }
-
         }, {
             timeout: ms('10 m'),
-        })))
+        }))
     }
 
     private async bitTorrentHook(hook: Hook, feed: Feed, articles: Article[]) {
@@ -661,159 +692,163 @@ export class TasksService implements OnApplicationBootstrap {
                     password,
                     timeout: 60 * 1000,
                 })
-                await Promise.allSettled(btArticles.map((article) => {
+                btArticles.map((article) => {
                     const priority = 1e5 + getPriority(1e4)
                     return bitTorrentQueue.add(async () => {
-                        const url = article.enclosureUrl
-                        const shoutUrl = url?.slice(0, 128)
-                        let hash = ''
-                        let magnetUri = ''
-                        let name = ''
-                        let size = 0
-                        let magnet: Instance & { xl?: number }
-                        // 判读磁盘空间不足时，是否自动删除
-                        if (minDiskSize && autoRemove) {
-                            // 判断 bt 服务器的磁盘空间 是否充足
-                            await this.removeMaxSizeTorrent(qBittorrent, minDiskSize)
-                            // return
-                        }
-                        if (article.enclosureLength === 1) { // 如果 length 为 1 ，则重新获取真实大小。例如：动漫花园 rss
-                            article.enclosureLength = 0
-                        }
-                        // 如果是 magnet，则直接添加 磁力链接 /^magnet:/.test
-                        if (isMagnetURI(url)) {
-                            magnet = parseTorrent(url) as Instance
-                            hash = magnet.infoHash?.toLowerCase()
-                            const resource: Resource = await this.resourceRepository.findOne({ where: { hash, userId } })
-                            if (resource) {
-                                __DEV__ && this.logger.debug(`资源 ${shoutUrl} 已存在，跳过该资源下载`)
+                        try {
+                            const url = article.enclosureUrl
+                            const shoutUrl = url?.slice(0, 128)
+                            let hash = ''
+                            let magnetUri = ''
+                            let name = ''
+                            let size = 0
+                            let magnet: Instance & { xl?: number }
+                            // 判读磁盘空间不足时，是否自动删除
+                            if (minDiskSize && autoRemove) {
+                                // 判断 bt 服务器的磁盘空间 是否充足
+                                await this.removeMaxSizeTorrent(qBittorrent, minDiskSize)
+                                // return
+                            }
+                            if (article.enclosureLength === 1) { // 如果 length 为 1 ，则重新获取真实大小。例如：动漫花园 rss
+                                article.enclosureLength = 0
+                            }
+                            // 如果是 magnet，则直接添加 磁力链接 /^magnet:/.test
+                            if (isMagnetURI(url)) {
+                                magnet = parseTorrent(url) as Instance
+                                hash = magnet.infoHash?.toLowerCase()
+                                const resource: Resource = await this.resourceRepository.findOne({ where: { hash, userId } })
+                                if (resource) {
+                                    __DEV__ && this.logger.debug(`资源 ${shoutUrl} 已存在，跳过该资源下载`)
 
-                                if (resource.url !== url && isHttpURL(resource.url) && !article.enclosureLength) { // 如果是不同的 url
-                                    article.enclosureLength = resource.size // 更新附件大小
+                                    if (resource.url !== url && isHttpURL(resource.url) && !article.enclosureLength) { // 如果是不同的 url
+                                        article.enclosureLength = resource.size // 更新附件大小
+                                        await this.articleRepository.save(article)
+                                    }
+                                    return
+                                }
+                                this.logger.log(`正在下载资源：${shoutUrl}`)
+                                await qBittorrent.addMagnet(url, { savepath: downloadPath })
+                            } else if (isHttpURL(url)) { // 如果是 http，则下载 bt 种子
+                                if (await this.resourceRepository.findOne({ where: { url, userId } })) {
+                                    __DEV__ && this.logger.debug(`资源 ${shoutUrl} 已存在，跳过该资源下载`)
+                                    return
+                                }
+                                const resp = await ajax<ArrayBuffer>({
+                                    url,
+                                    proxyUrl,
+                                    responseType: 'arraybuffer',
+                                    timeout: 60 * 1000,
+                                })
+                                const torrent = Buffer.from(resp.data)
+                                magnet = parseTorrent(torrent) as Instance
+                                hash = magnet.infoHash?.toLowerCase() // hash
+                                const resource: Resource = await this.resourceRepository.findOne({ where: { hash, userId } })
+                                if (resource) {
+                                    __DEV__ && this.logger.debug(`资源 ${shoutUrl} 已存在，跳过该资源下载`)
+                                    // 解决存在不同源的相同资源缺少 size 的问题
+                                    if (resource.url !== url && isMagnetURI(resource.url) && !article.enclosureLength) { // 如果是不同的 url
+                                        article.enclosureLength = resource.size // 更新附件大小
+                                        await this.articleRepository.save(article)
+                                    }
+                                    return
+                                }
+                                this.logger.log(`正在下载资源：${shoutUrl}`)
+                                await qBittorrent.addTorrent(torrent, { savepath: downloadPath })
+                            }
+
+                            if (/^(https?:\/\/|magnet:)/.test(url)) {
+                                name = magnet.name || magnet.dn as string
+
+                                if (article.enclosureLength) {
+                                    size = article.enclosureLength
+                                } else if (magnet.length) {
+                                    size = Number(magnet.length)
+                                } else if (magnet.xl) {
+                                    size = Number(magnet.xl)
+                                }
+
+                                const tracker = magnet.announce?.[0] // 仅保留第一个 tracker
+                                magnetUri = toMagnetURI({
+                                    infoHash: hash,
+                                    dn: name || '',
+                                    xl: size,
+                                    tr: tracker,
+                                } as Instance)
+                                const resource = this.resourceRepository.create({
+                                    url: isHttpURL(url) ? url : magnetUri,
+                                    name, // 名称
+                                    path: '', // 文件在服务器上的地址，没有必要，故统一留空
+                                    status: size ? 'success' : 'unknown',
+                                    size, // 体积大小
+                                    type: 'application/x-bittorrent',
+                                    hash,
+                                    userId,
+                                })
+                                const newResource = await this.resourceRepository.save(resource)
+                                if (newResource.size > 0 && !article.enclosureLength) {
+                                    article.enclosureLength = newResource.size // 更新附件大小
                                     await this.articleRepository.save(article)
                                 }
-                                return
-                            }
-                            this.logger.log(`正在下载资源：${shoutUrl}`)
-                            await qBittorrent.addMagnet(url, { savepath: downloadPath })
-                        } else if (isHttpURL(url)) {  // 如果是 http，则下载 bt 种子
-                            if (await this.resourceRepository.findOne({ where: { url, userId } })) {
-                                __DEV__ && this.logger.debug(`资源 ${shoutUrl} 已存在，跳过该资源下载`)
-                                return
-                            }
-                            const resp = await ajax<ArrayBuffer>({
-                                url,
-                                proxyUrl,
-                                responseType: 'arraybuffer',
-                                timeout: 60 * 1000,
-                            })
-                            const torrent = Buffer.from(resp.data)
-                            magnet = parseTorrent(torrent) as Instance
-                            hash = magnet.infoHash?.toLowerCase() // hash
-                            const resource: Resource = await this.resourceRepository.findOne({ where: { hash, userId } })
-                            if (resource) {
-                                __DEV__ && this.logger.debug(`资源 ${shoutUrl} 已存在，跳过该资源下载`)
-                                // 解决存在不同源的相同资源缺少 size 的问题
-                                if (resource.url !== url && isMagnetURI(resource.url) && !article.enclosureLength) { // 如果是不同的 url
-                                    article.enclosureLength = resource.size // 更新附件大小
-                                    await this.articleRepository.save(article)
+                                // 判读磁盘空间
+                                if (minDiskSize) {
+                                    const mainData = await qBittorrent.getMainData(random(0, 1e8, false))
+                                    // 如果 bt 服务器的磁盘空间不足，则停止下载
+                                    if (mainData?.server_state?.free_space_on_disk && mainData.server_state.free_space_on_disk < minDiskSize) {
+                                        this.logger.warn(`bt 服务器的磁盘空间小于 ${config.minDiskSize} ，停止下载`)
+                                        newResource.status = 'skip'
+                                        await this.resourceRepository.save(newResource)
+                                        // 移除超过限制的资源
+                                        // 校验是否真的删除了
+                                        // 加到队列末尾
+                                        bitTorrentQueue.add(async () => {
+                                            await this.tryRemoveTorrent(qBittorrent, hash)
+                                        }, { priority: -1, timeout: ms('10 m') })
+                                        return
+                                    }
                                 }
-                                return
-                            }
-                            this.logger.log(`正在下载资源：${shoutUrl}`)
-                            await qBittorrent.addTorrent(torrent, { savepath: downloadPath })
-                        }
-
-                        if (/^(https?:\/\/|magnet:)/.test(url)) {
-                            name = magnet.name || magnet.dn as string
-
-                            if (article.enclosureLength) {
-                                size = article.enclosureLength
-                            } else if (magnet.length) {
-                                size = Number(magnet.length)
-                            } else if (magnet.xl) {
-                                size = Number(magnet.xl)
-                            }
-
-                            const tracker = magnet.announce?.[0] // 仅保留第一个 tracker
-                            magnetUri = toMagnetURI({
-                                infoHash: hash,
-                                dn: name || '',
-                                xl: size,
-                                tr: tracker,
-                            } as Instance)
-                            const resource = this.resourceRepository.create({
-                                url: isHttpURL(url) ? url : magnetUri,
-                                name, // 名称
-                                path: '', // 文件在服务器上的地址，没有必要，故统一留空
-                                status: size ? 'success' : 'unknown',
-                                size,  // 体积大小
-                                type: 'application/x-bittorrent',
-                                hash,
-                                userId,
-                            })
-                            const newResource = await this.resourceRepository.save(resource)
-                            if (newResource.size > 0 && !article.enclosureLength) {
-                                article.enclosureLength = newResource.size // 更新附件大小
-                                await this.articleRepository.save(article)
-                            }
-                            // 判读磁盘空间
-                            if (minDiskSize) {
-                                const mainData = await qBittorrent.getMainData(random(0, 1e8, false))
-                                // 如果 bt 服务器的磁盘空间不足，则停止下载
-                                if (mainData?.server_state?.free_space_on_disk && mainData.server_state.free_space_on_disk < minDiskSize) {
-                                    this.logger.warn(`bt 服务器的磁盘空间小于 ${config.minDiskSize} ，停止下载`)
+                                // 判断附件大小
+                                if (isSafePositiveInteger(maxSize) && maxSize > 0 && newResource.size > 0 && maxSize <= newResource.size) {
+                                    this.logger.warn(`资源 ${shoutUrl} 的大小超过限制，跳过该资源下载`)
                                     newResource.status = 'skip'
                                     await this.resourceRepository.save(newResource)
                                     // 移除超过限制的资源
                                     // 校验是否真的删除了
-                                    // 加到队列末尾
                                     bitTorrentQueue.add(async () => {
                                         await this.tryRemoveTorrent(qBittorrent, hash)
                                     }, { priority: -1, timeout: ms('10 m') })
                                     return
                                 }
-                            }
-                            // 判断附件大小
-                            if (isSafePositiveInteger(maxSize) && maxSize > 0 && newResource.size > 0 && maxSize <= newResource.size) {
-                                this.logger.warn(`资源 ${shoutUrl} 的大小超过限制，跳过该资源下载`)
-                                newResource.status = 'skip'
-                                await this.resourceRepository.save(newResource)
-                                // 移除超过限制的资源
-                                // 校验是否真的删除了
-                                bitTorrentQueue.add(async () => {
-                                    await this.tryRemoveTorrent(qBittorrent, hash)
-                                }, { priority: -1, timeout: ms('10 m') })
+                                // 由于 磁力链接没有元数据，因此在 qBittorrent 解析前不知道其大小
+                                // 如果从种子解析出的 size 为空，则应该在 qBittorrent 解析后再次校验大小
+                                if (!newResource.size || newResource.size <= 0) {
+                                    // 加到队列末尾
+                                    bitTorrentQueue.add(async () => {
+                                        await retryBackoff(async () => {
+                                            size = await this.updateTorrentInfo(qBittorrent, config, newResource, article)
+                                            if (size > 0 || size === -1) {
+                                                return
+                                            }
+                                            __DEV__ && this.logger.debug(`未解析出资源 ${shoutUrl} 的大小！即将重试。`)
+                                            throw new Error(`未解析出资源 ${shoutUrl} 的大小！`)
+                                        }, {
+                                            maxRetries: 10,
+                                            initialInterval: ms('10 s'),
+                                            maxInterval: ms('10 m'),
+                                        })
+                                    }, { priority: priority - 1e5, timeout: ms('10 m') })
+                                }
                                 return
                             }
-                            // 由于 磁力链接没有元数据，因此在 qBittorrent 解析前不知道其大小
-                            // 如果从种子解析出的 size 为空，则应该在 qBittorrent 解析后再次校验大小
-                            if (!newResource.size || newResource.size <= 0) {
-                                // 加到队列末尾
-                                bitTorrentQueue.add(async () => {
-                                    await retryBackoff(async () => {
-                                        size = await this.updateTorrentInfo(qBittorrent, config, newResource, article)
-                                        if (size > 0 || size === -1) {
-                                            return
-                                        }
-                                        __DEV__ && this.logger.debug(`未解析出资源 ${shoutUrl} 的大小！即将重试。`)
-                                        throw new Error(`未解析出资源 ${shoutUrl} 的大小！`)
-                                    }, {
-                                        maxRetries: 10,
-                                        initialInterval: ms('10 s'),
-                                        maxInterval: ms('10 m'),
-                                    })
-                                }, { priority: priority - 1e5, timeout: ms('10 m') })
-                            }
-                            return
+                            this.logger.error(`不支持的 资源类型：${shoutUrl}`)
+                        } catch (error) {
+                            this.logger.error(error?.message, error?.stack)
                         }
-                        this.logger.error(`不支持的 资源类型：${shoutUrl}`)
                     }, {
                         priority,
                         timeout: ms('1 h'),
                     },
                     )
-                }))
+                })
                 return
             }
             default:
@@ -829,54 +864,61 @@ export class TasksService implements OnApplicationBootstrap {
      * @private
      */
     private async removeMaxSizeTorrent(qBittorrent: QBittorrent, minDiskSize: number) {
-        await retryBackoff(async () => {
-            // 判断 bt 服务器的磁盘空间是否不足，如果是，则删除
-            // 为了防止并发造成的问题，每次删除前都需要再查询一次
-            const mainData = await qBittorrent.getMainData(random(0, 1e8, false))
-            const freeSpaceOnDisk = mainData?.server_state?.free_space_on_disk
-            // 如果服务器磁盘空间足够，则跳过本次删除
-            if (freeSpaceOnDisk && freeSpaceOnDisk >= minDiskSize) {
-                return
-            }
-            // 如果 bt 服务器的磁盘空间不足，则自动删除
-            this.logger.warn(`bt 服务器当前的磁盘空间 ${dataFormat(freeSpaceOnDisk)} 小于 保留磁盘的最小值 ${dataFormat(minDiskSize)} ，正在自动删除中`)
-            // 按 下载体积降序
-            const torrents = await qBittorrent.listTorrents({ sort: 'downloaded', reverse: true })
-            // torrents.sort((a, b) => b?.downloaded - a?.downloaded)
-            const torrent = torrents.at(0)
-            if (torrent?.downloaded) { // 如果 torrent 存在且下载的体积大于 0，则删除
-                await this.tryRemoveTorrent(qBittorrent, torrent.hash)
-                if (freeSpaceOnDisk + torrent.downloaded < minDiskSize) { // 如果删除了这个文件还不够，则继续删除
-                    throw new Error('bt 服务器当前的磁盘空间不足，继续删除文件！')
+        try {
+            await retryBackoff(async () => {
+                // 判断 bt 服务器的磁盘空间是否不足，如果是，则删除
+                // 为了防止并发造成的问题，每次删除前都需要再查询一次
+                const mainData = await qBittorrent.getMainData(random(0, 1e8, false))
+                const freeSpaceOnDisk = mainData?.server_state?.free_space_on_disk
+                // 如果服务器磁盘空间足够，则跳过本次删除
+                if (freeSpaceOnDisk && freeSpaceOnDisk >= minDiskSize) {
+                    return
                 }
-            }
-        }, {
-            maxRetries: 3,
-            initialInterval: ms('30 s'),
-            maxInterval: ms('30 m'),
-        })
+                // 如果 bt 服务器的磁盘空间不足，则自动删除
+                this.logger.warn(`bt 服务器当前的磁盘空间 ${dataFormat(freeSpaceOnDisk)} 小于 保留磁盘的最小值 ${dataFormat(minDiskSize)} ，正在自动删除中`)
+                // 按 下载体积降序
+                const torrents = await qBittorrent.listTorrents({ sort: 'downloaded', reverse: true })
+                const torrent = torrents.at(0)
+                if (torrent?.downloaded) { // 如果 torrent 存在且下载的体积大于 0，则删除
+                    await this.tryRemoveTorrent(qBittorrent, torrent.hash)
+                    if (freeSpaceOnDisk + torrent.downloaded < minDiskSize) { // 如果删除了这个文件还不够，则继续删除
+                        throw new Error('bt 服务器当前的磁盘空间不足，继续删除文件！')
+                    }
+                }
+            }, {
+                maxRetries: 3,
+                initialInterval: ms('30 s'),
+                maxInterval: ms('30 m'),
+            })
+        } catch (error) {
+            this.logger.error(error?.message, error?.stack)
+        }
     }
 
     private async tryRemoveTorrent(qBittorrent: QBittorrent, hash: string) {
-        await retryBackoff(async () => {
-            const [error, flag] = await to(qBittorrent.removeTorrent(hash, true))
-            if (error || !flag) { // 删除失败
-                this.logger.error(error?.message, error?.stack)
-            }
-            const [error2, torrentInfo] = await to(qBittorrent.getTorrent(hash))
-            if (error2) { // 如果报错，则说明删了
-                __DEV__ && this.logger.debug(error?.stack)
-                return
-            }
-            if (!torrentInfo) { // 如果没有数据，说明删了
-                return
-            }
-            throw new Error(`删除资源 ${hash} 失败`, { cause: error })
-        }, {
-            maxRetries: 10,
-            initialInterval: ms('10 s'),
-            maxInterval: ms('10 m'),
-        })
+        try {
+            await retryBackoff(async () => {
+                const [error, flag] = await to(qBittorrent.removeTorrent(hash, true))
+                if (error || !flag) { // 删除失败
+                    this.logger.error(error?.message, error?.stack)
+                }
+                const [error2, torrentInfo] = await to(qBittorrent.getTorrent(hash))
+                if (error2) { // 如果报错，则说明删了
+                    __DEV__ && this.logger.debug(error?.stack)
+                    return
+                }
+                if (!torrentInfo) { // 如果没有数据，说明删了
+                    return
+                }
+                throw new Error(`删除资源 ${hash} 失败`, { cause: error })
+            }, {
+                maxRetries: 10,
+                initialInterval: ms('10 s'),
+                maxInterval: ms('10 m'),
+            })
+        } catch (error) {
+            this.logger.error(error?.message, error?.stack)
+        }
     }
 
     /**
@@ -960,7 +1002,7 @@ export class TasksService implements OnApplicationBootstrap {
         const proxyUrl = hook.proxyConfig?.url
         const { type, isOnlySummaryEmpty, contentType, isIncludeTitle, apiKey, prompt, timeout, isSplit } = config
         const isSnippet = contentType === 'text'
-        let { minContentLength, maxTokens, temperature, maxContextLength, action, endpoint, model } = config
+        let { minContentLength, maxTokens, temperature, maxContextLength, action, endpoint, model, responseFormat } = config
         endpoint = endpoint || 'https://api.openai.com/v1'
         model = model || 'gpt-3.5-turbo'
         action = action || 'summary'
@@ -968,6 +1010,7 @@ export class TasksService implements OnApplicationBootstrap {
         maxContextLength = maxContextLength || 4096
         minContentLength = minContentLength ?? 1024
         temperature = temperature ?? 0
+        responseFormat = responseFormat ?? (action === 'summary' ? 'text' : 'json')
         const aiArticles = articles.filter((article) => {
             if (action === 'summary' && isOnlySummaryEmpty && article.summary) { // 如果已经有 summary 了，则不再生成 AI summary
                 return false
@@ -1072,7 +1115,7 @@ EXAMPLE JSON ERROR OUTPUT:
                 if (reservedTokens <= 0) {
                     throw new HttpError(400, '最大 token 数过小！请修改配置！')
                 }
-                await Promise.allSettled(aiArticles.map((article) => aiQueue.add(async () => {
+                aiArticles.forEach((article) => aiQueue.add(async () => {
                     const articleContent = getArticleContent(article, isSnippet, isIncludeTitle)
                     const articleContentList = isSplit ? splitStringByToken(articleContent, reservedTokens) : [limitToken(articleContent, reservedTokens)]
                     if (action === 'summary') {
@@ -1089,6 +1132,9 @@ EXAMPLE JSON ERROR OUTPUT:
                                 n: 1,
                                 temperature,
                                 max_tokens: maxTokens,
+                                response_format: {
+                                    type: responseFormat as any,
+                                },
                             }))
                             if (error) {
                                 this.logger.error(error?.message, error?.stack)
@@ -1097,21 +1143,13 @@ EXAMPLE JSON ERROR OUTPUT:
                             }
                         }
                         const aiSummary = aiSummaries.join('')
-                        if (__DEV__) {
-                            this.logger.debug(`文章(id: ${article.id}) ${article.title} 总结完成`)
-                        } else {
-                            this.logger.log(`文章 id: ${article.id} 总结完成`)
-                        }
+                        this.logger.log(`文章 ${article.title}(id: ${article.id}) 总结完成`)
                         article.aiSummary = aiSummary
                         await this.articleRepository.save(article)
                         return
                     }
                     if (action === 'generateCategory') { // 生成分类
-                        if (__DEV__) {
-                            this.logger.debug(`正在分类文章(id: ${article.id})：${article.title}`)
-                        } else {
-                            this.logger.log(`正在分类文章 id: ${article.id}`)
-                        }
+                        this.logger.log(`正在分类文章 ${article.title}(id: ${article.id})`)
                         const aiCategories: string[] = []
                         for await (const content of articleContentList) { // 串行请求
                             const [error, chatCompletion] = await to(openai.chat.completions.create({
@@ -1121,7 +1159,7 @@ EXAMPLE JSON ERROR OUTPUT:
                                 temperature,
                                 max_tokens: maxTokens,
                                 response_format: {
-                                    type: 'json_object',
+                                    type: responseFormat as any,
                                 },
                             }))
                             if (error) {
@@ -1140,17 +1178,13 @@ EXAMPLE JSON ERROR OUTPUT:
                                 }
                             }
                         }
-                        if (__DEV__) {
-                            this.logger.debug(`文章(id: ${article.id}) ${article.title} 分类完成`)
-                        } else {
-                            this.logger.log(`文章 id: ${article.id} 分类完成`)
-                        }
+                        this.logger.log(`文章(id: ${article.id}) ${article.title} 分类完成`)
                         article.categories = uniq([...article.categories || [], ...aiCategories])
                         await this.articleRepository.save(article)
                     }
                 }, {
                     timeout: ms('1 h'),
-                })))
+                }))
                 return
             }
             default:
@@ -1171,7 +1205,10 @@ EXAMPLE JSON ERROR OUTPUT:
                 this.logger.error(error?.message, error?.stack)
                 return article
             }
-        }).map((article) => plainToInstance(Article, article))
+        }).map((article) => plainToInstance(Article, article, {
+            enableCircularCheck: true,
+
+        }))
         await this.articleRepository.save(newArticles)
     }
 
@@ -1264,27 +1301,143 @@ EXAMPLE JSON ERROR OUTPUT:
         }
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'removeArticles' }) // 每天删除一次
-    private async removeArticles() {
+    @Cron(CronExpression.EVERY_DAY_AT_4AM, { name: 'removeArticles' }) // 每天删除一次
+    async removeArticles() {
         try {
-            this.logger.log('开始移除过时的文章')
-            const date = dayjs().add(-ARTICLE_SAVE_DAYS, 'day').toDate()
-            const removes = await this.articleRepository.delete({
-                // pubDate: LessThan(date),
-                createdAt: LessThan(date),
+            const date = dayjs().hour(0).minute(0).second(0).millisecond(0).add(-ARTICLE_SAVE_DAYS, 'day').toDate()
+
+            // 1. First remove old articles based on pubDate in batches
+            const BATCH_SIZE = 1000
+            let deletedCount = 0
+            let hasMoreArticles = true
+
+            while (hasMoreArticles) {
+                const articlesToDelete = await this.articleRepository.find({
+                    where: [{ pubDate: LessThan(date) }, { createdAt: LessThan(date) }],
+                    take: BATCH_SIZE,
+                    select: ['id'], // Only select IDs for better performance
+                })
+
+                hasMoreArticles = articlesToDelete.length === BATCH_SIZE
+                if (articlesToDelete.length === 0) {
+                    break
+                }
+
+                const ids = articlesToDelete.map((article) => article.id)
+                const result = await this.articleRepository.delete(ids)
+                deletedCount += result.affected || 0
+
+                // Small delay to prevent CPU overload
+                await randomSleep(10, 100)
+            }
+
+            this.logger.log(`成功移除 ${deletedCount} 篇过时的文章`)
+
+            // 2. Process feeds that exceed article limit
+            const feeds = await this.feedRepository.find({
+                where: { isEnabled: true },
+                select: ['id', 'title'], // Only select necessary fields
             })
-            this.logger.log('成功移除过时的文章')
-            this.logger.log(removes)
+
+            for (const feed of feeds) {
+                const totalCount = await this.articleRepository.count({
+                    where: { feedId: feed.id },
+                })
+
+                if (totalCount <= ARTICLE_LIMIT_MAX) {
+                    continue
+                }
+
+                const excessCount = totalCount - ARTICLE_LIMIT_MAX
+                let processed = 0
+                let hasMoreExcessArticles = true
+
+                // Delete excess articles in batches
+                while (hasMoreExcessArticles && processed < excessCount) {
+                    const articlesToDelete = await this.articleRepository
+                        .createQueryBuilder('article')
+                        .where('article.feedId = :feedId', { feedId: feed.id })
+                        .orderBy('article.createdAt', 'ASC')
+                        .take(Math.min(BATCH_SIZE, excessCount - processed))
+                        .select('article.id')
+                        .getMany()
+
+                    hasMoreExcessArticles = articlesToDelete.length > 0
+                    if (!hasMoreExcessArticles) {
+                        break
+                    }
+
+                    const ids = articlesToDelete.map((article) => article.id)
+                    await this.articleRepository.delete(ids)
+                    processed += articlesToDelete.length
+
+                    // Small delay to prevent CPU overload
+                    await randomSleep(10, 100)
+                }
+
+                this.logger.log(`订阅: ${feed.title}(id: ${feed.id}), 成功移除超过数量的文章 ${processed} 篇`)
+            }
+
+            // 3. Vacuum database if needed
+            if (DATABASE_TYPE === 'sqlite') {
+                await this.sqliteAutoVacuum()
+            }
         } catch (error) {
             this.logger.error(error?.message, error?.stack)
         }
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'removeResources' }) // 每天删除一次
+    @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'disableEmptyFeeds' }) // 每天禁用空订阅
+    async disableEmptyFeeds() {
+        if (!DISABLE_EMPTY_FEEDS) {
+            this.logger.warn('DISABLE_EMPTY_FEEDS 为 false，不执行禁用空订阅操作')
+            return
+        }
+        try {
+            const feeds = await this.feedRepository.find({
+                where: {
+                    isEnabled: true, // 只查找已启用的订阅
+                },
+                relations: ['hooks', 'customQueries', 'category', 'category.customQueries'],
+            })
+            if (!feeds.length) {
+                this.logger.warn('没有启用的订阅，不执行禁用空订阅操作')
+                return
+            }
+            // 检查所有为 all 的自定义查询，该部分需要单独处理，因为该部分不依赖于订阅
+            const customQueries = await this.customQueryRepository.find({
+                where: {
+                    scope: 'all',
+                },
+            })
+            const userIds = uniq(customQueries.map((e) => e.userId))
+            // 禁用不包含任何 Hook 和 自定义查询的订阅
+            feeds.forEach((feed) => {
+                if (feed.hooks?.length > 0 || feed.customQueries?.length > 0 || feed.category?.customQueries?.length > 0) {
+                    this.logger.log(`订阅: ${feed.title}(id: ${feed.id}) 包含 Hook 或 自定义查询，无需禁用`)
+                    return
+                }
+                if (userIds.includes(feed.userId)) { // 该订阅属于全量自定义查询，则无需禁用
+                    this.logger.log(`订阅: ${feed.title}(id: ${feed.id}) 属于全量查询，无需禁用`)
+                    return
+                }
+                removeQueue.add(async () => {
+                    feed.isEnabled = false
+                    await this.feedRepository.save(feed)
+                    await this.disableFeedTask(feed, false)
+                    this.logger.log(`订阅: ${feed.title}(id: ${feed.id}) 已禁用，因为不包含任何 Hook 和 自定义查询`)
+                })
+            })
+        } catch (error) {
+            this.logger.error(error?.message, error?.stack)
+        }
+    }
+
+    @Cron(CronExpression.EVERY_DAY_AT_4AM, { name: 'removeResources' }) // 每天删除一次
     private async removeResources() {
         try {
             this.logger.log('开始移除过时的资源')
-            const date = dayjs().add(-RESOURCE_SAVE_DAYS, 'day').toDate()
+            const date = dayjs().hour(0).minute(0).second(0).millisecond(0).add(-RESOURCE_SAVE_DAYS, 'day').toDate()
             const removes = await this.resourceRepository.delete({
                 createdAt: LessThan(date),
             })
@@ -1315,13 +1468,12 @@ EXAMPLE JSON ERROR OUTPUT:
         }
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'removeLogs' }) // 每天删除一次
+    @Cron(CronExpression.EVERY_DAY_AT_4AM, { name: 'removeLogs' }) // 每天删除一次
     private async removeLogs() {
         try {
             this.logger.log('开始移除过时的日志')
-            const date = dayjs().add(-LOG_SAVE_DAYS, 'day').toDate()
+            const date = dayjs().hour(0).minute(0).second(0).millisecond(0).add(-LOG_SAVE_DAYS, 'day').toDate()
             const removes = await this.webhookLogRepository.delete({
-                // pubDate: LessThan(date),
                 createdAt: LessThan(date),
             })
             this.logger.log('成功移除过时的日志')
@@ -1331,47 +1483,108 @@ EXAMPLE JSON ERROR OUTPUT:
         }
     }
 
-    private async dailyCountByDate(dateInput: string | Date | Dayjs) { // 'YYYY-MM-DD'
+    @Cron(CronExpression.EVERY_DAY_AT_1AM, { name: 'removeLogFiles' }) // 每天删除一次
+    private async removeLogFiles() {
+        try {
+            const dirPath = logDir// 解析为绝对路径
+            const files = await fs.readdir(dirPath)
+
+            files.forEach((file) => {
+                if (!/\.(log(\.gz)?)$/.test(file)) { // 如果不是日志文件，则跳过
+                    return null
+                }
+                return removeQueue.add(async () => {
+                    // 检查日志最后写入时间是否超过 LOG_SAVE_DAYS 天
+                    const filepath = path.join(dirPath, file)
+                    const stats = await fs.stat(filepath)
+                    const date = stats.mtime
+                    const days = dayjs().diff(date, 'day')
+                    if (days > LOG_SAVE_DAYS) {
+                        await fs.remove(filepath)
+                    }
+                })
+            })
+        } catch (error) {
+            this.logger.error(error?.message, error?.stack)
+        }
+    }
+
+    async dailyCountByDate(dateInput: string | Date | Dayjs) { // 'YYYY-MM-DD'
         const defaultDate = dayjs(dateInput).tz().hour(0).minute(0).second(0).millisecond(0)
+        const rawDate = defaultDate.toDate()
         const start = defaultDate.toDate() // 从0点开始算
         const end = defaultDate.add(1, 'day').add(-1, 'millisecond').toDate() // 到 23点59分59秒999毫秒
         const date = defaultDate.format('YYYY-MM-DD')
-        const articleCount = await this.articleRepository.count({
+        const options = {
             where: {
                 createdAt: Between(start, end),
             },
-        })
-        const resourceCount = await this.resourceRepository.count({
-            where: {
-                createdAt: Between(start, end),
-            },
-        })
-        const webhookLogCount = await this.webhookLogRepository.count({
-            where: {
-                createdAt: Between(start, end),
-            },
-        })
+        }
+        const articleCount = await this.articleRepository.count(options)
+        const resourceCount = await this.resourceRepository.count(options)
+        const webhookLogCount = await this.webhookLogRepository.count(options)
+        const feedCount = await this.feedRepository.count(options)
+        const categoryCount = await this.categoryRepository.count(options)
+        const hookCount = await this.hookRepository.count(options)
+        const customQueryCount = await this.customQueryRepository.count(options)
+        const proxyConfigCount = await this.proxyConfigRepository.count(options)
+        const userCount = await this.userRepository.count(options)
         const newDailyCount: Partial<DailyCount> = {
-            date,
             articleCount,
             resourceCount,
             webhookLogCount,
+            feedCount,
+            categoryCount,
+            hookCount,
+            customQueryCount,
+            proxyConfigCount,
+            userCount,
+        }
+        this.logger.log(`${date} 的每日统计数据: newDailyCount \n${JSON.stringify(newDailyCount, null, 4)}`)
+        const fields = Object.keys(newDailyCount)
+        // 如果 newDailyCount 每一项都是 0 ，则跳过更新
+        if (fields.every((e) => newDailyCount[e] === 0)) {
+            this.logger.log(`${date} 的每日统计数据每一项都是 0，跳过更新`)
+            return
         }
         const dailyCount = await this.dailyCountRepository.findOne({ where: { date } })
-        const fields = ['articleCount', 'resourceCount', 'webhookLogCount']
-        if (dailyCount) { // 如果存在且值不相等，则更新
-            if (!isEqual(pickBy(newDailyCount, fields), pickBy(dailyCount, fields))) {
+        if (dailyCount) { // 如果存在
+            // 如果 rawDate 为空，则更新
+            if (!dailyCount.rawDate) {
                 await this.dailyCountRepository.save(this.dailyCountRepository.create({
-                    ...dailyCount,
-                    ...newDailyCount,
+                    ...Object.fromEntries(fields.map((e) => [e, Math.max(dailyCount[e], newDailyCount[e])])), // 保留数值更大的字段
+                    date,
+                    rawDate,
+                    id: dailyCount.id,
                 }))
+                this.logger.log(`${date} 的每日统计数据已更新`)
+                return
             }
-            return null
+            // 如果值不相等，则更新
+            if (!isEqual(pick(newDailyCount, fields), pick(dailyCount, fields))) {
+                this.logger.log(`${date} 的每日统计数据已存在，开始更新`)
+                await this.dailyCountRepository.save(this.dailyCountRepository.create({
+                    ...Object.fromEntries(fields.map((e) => [e, Math.max(dailyCount[e], newDailyCount[e])])), // 保留数值更大的字段
+                    date,
+                    rawDate,
+                    id: dailyCount.id,
+                }))
+                this.logger.log(`${date} 的每日统计数据已更新`)
+                return
+            }
+            this.logger.log(`${date} 的每日统计数据已存在，无需更新`)
+            return
         }
-        return this.dailyCountRepository.save(this.dailyCountRepository.create(newDailyCount))
+        // 如果不存在，则创建
+        await this.dailyCountRepository.save(this.dailyCountRepository.create({
+            ...newDailyCount,
+            date,
+            rawDate,
+        }))
+        this.logger.log(`${date} 的每日统计数据已创建`)
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'dailyCountTimer' }) // 每天统计一次
+    @Cron(CronExpression.EVERY_DAY_AT_1AM, { name: 'dailyCountTimer' }) // 每天统计一次
     private async dailyCountTimer() {
         try {
             this.logger.log('开始统计 文章数、资源数、推送 webhook 数')
@@ -1382,4 +1595,21 @@ EXAMPLE JSON ERROR OUTPUT:
             this.logger.error(error?.message, error?.stack)
         }
     }
+
+    async sqliteAutoVacuum() {
+        // 触发 VACUUM，以自动回收未使用的空间
+        try {
+            this.logger.log('正在触发 VACUUM')
+            await removeQueue.add(async () => {
+                this.logger.log('开始执行 VACUUM')
+                await this.dataSource.query('VACUUM;')
+                this.logger.log('VACUUM 执行成功')
+            }, {
+                priority: -1, // 优先级设置为负数，排到队尾
+            })
+        } catch (error) {
+            this.logger.error(error?.message, error?.stack)
+        }
+    }
+
 }

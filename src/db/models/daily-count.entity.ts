@@ -4,6 +4,7 @@ import { Base } from './base.entity'
 import { IsSafeNaturalNumber } from '@/decorators/is-safe-integer.decorator'
 import { FindPlaceholderDto } from '@/models/find-placeholder.dto'
 import { CustomColumn } from '@/decorators/custom-column.decorator'
+import { SetAclCrudField } from '@/decorators/set-acl-crud-field.decorator'
 
 /**
  * 每日计数：文章数/资源数/推送 webhook 数
@@ -22,6 +23,16 @@ export class DailyCount extends Base {
         length: 16,
     })
     date: string
+
+    @SetAclCrudField({
+        hide: true,
+    })
+    @ApiProperty({ title: '原始日期', example: new Date('2024-01-01') })
+    @CustomColumn({
+        index: true,
+        nullable: true,
+    })
+    rawDate: Date
 
     @ApiProperty({ title: '文章数量', example: 114 })
     @IsSafeNaturalNumber()
@@ -43,9 +54,54 @@ export class DailyCount extends Base {
         default: 0,
     })
     webhookLogCount: number
+
+    @ApiProperty({ title: 'RSS订阅源数量', example: 233 })
+    @IsSafeNaturalNumber()
+    @CustomColumn({
+        default: 0,
+    })
+    feedCount: number
+
+    @ApiProperty({ title: '分类数量', example: 233 })
+    @IsSafeNaturalNumber()
+    @CustomColumn({
+        default: 0,
+    })
+    categoryCount: number
+
+    @ApiProperty({ title: 'Hook数量', example: 233 })
+    @IsSafeNaturalNumber()
+    @CustomColumn({
+        default: 0,
+    })
+    hookCount: number
+
+    @ApiProperty({ title: '自定义查询数量', example: 233 })
+    @IsSafeNaturalNumber()
+    @CustomColumn({
+        default: 0,
+    })
+    customQueryCount: number
+
+    @ApiProperty({ title: '代理数量', example: 233 })
+    @IsSafeNaturalNumber()
+    @CustomColumn({
+        default: 0,
+    })
+    proxyConfigCount: number
+
+    @ApiProperty({ title: '用户数量', example: 233 })
+    @IsSafeNaturalNumber()
+    @CustomColumn({
+        default: 0,
+    })
+    userCount: number
+
 }
 
 export class FindDailyCount extends FindPlaceholderDto<DailyCount> {
+
     @ApiProperty({ type: () => [DailyCount] })
     declare data: DailyCount[]
+
 }

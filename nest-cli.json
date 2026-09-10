@@ -9,6 +9,9 @@
                     "dtoFileNameSuffix": [
                         ".dto.ts",
                         ".entity.ts",
+                        "-config.ts",
+                        "auth-meta.ts",
+                        "http-error.ts",
                         ".ts"
                     ]
                 }

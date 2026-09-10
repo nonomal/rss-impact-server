@@ -4,19 +4,10 @@ updates:
     directory: /
     open-pull-requests-limit: 20
     schedule:
-      interval: daily
-      time: "05:00"
+      interval: "monthly"
+      time: "04:00"
       timezone: Asia/Shanghai
     ignore:
-      - dependency-name: semantic-release
-        versions:
-          - ">= 21.0.1"
-      - dependency-name: "@commitlint/cli"
-        versions:
-          - ">= 19.0.0"
-      - dependency-name: "@commitlint/config-conventional"
-        versions:
-          - ">= 19.0.0"
       - dependency-name: "file-type"
         versions:
           - ">= 17.0.0"
@@ -32,3 +23,25 @@ updates:
       - dependency-name: "parse-torrent"
         versions:
           - ">= 10.0.0"
+      - dependency-name: "@nestjs/swagger"
+        versions:
+          - ">= 8.0.0" # 8.0.0 以上的版本会导致 nestjs 无法启动
+      - dependency-name: "@sentry/profiling-node"
+        versions:
+          - ">= 8.48.0" # 8.48.0 以上的版本包含 .node 文件，会导致 docker 无法启动
+      - dependency-name: art-template
+        versions:
+          - ">=4.13.3" # 4.13.3 以上版本存在恶意代码，参考 https://github.com/yoimiya-kokomi/Miao-Yunzai/pull/515
+      - dependency-name: bcrypt
+        versions:
+          - ">= 6.0.0" # 6.0.0 以上版本会导致 docker 无法启动
+      - dependency-name: "connect-redis"
+        versions:
+          - ">= 9.0.0" # 9.0.0 以上版本会导致 redis 无法连接
+  - package-ecosystem: github-actions
+    directory: /
+    open-pull-requests-limit: 20
+    schedule:
+      interval: "monthly"
+      time: "04:00"
+      timezone: Asia/Shanghai

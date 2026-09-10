@@ -1,7 +1,9 @@
 import os from 'os'
 import path from 'path'
-import autocannon, { Client, Options } from 'autocannon'
+import autocannon, { Options } from 'autocannon'
 import dotenv from 'dotenv'
+import { Octokit } from 'octokit'
+import * as betterBytes from 'better-bytes'
 
 dotenv.config({
     path: [
@@ -17,11 +19,14 @@ const PORT = Number(process.env.PORT || 3000)
 const BASE_URL = `http://localhost:${PORT}`
 
 const DATA_PATH = path.resolve(process.env.DATA_PATH || './data')
-const DATABASE_PATH = path.join(DATA_PATH, 'database.test.sqlite')
+// const DATABASE_PATH = path.join(DATA_PATH, 'database.test.sqlite')
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 
 const CI = process.env.CI
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
+const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY || ''
+const GITHUB_PR_NUMBER = process.env.GITHUB_PR_NUMBER || ''
 
 async function runAutocannon(param: Options) {
     const result = await autocannon({
@@ -33,7 +38,21 @@ async function runAutocannon(param: Options) {
         // bailout: 1000,
         ...param,
     })
-    console.log(`url: ${param.url}\n${autocannon.printResult(result)}`)
+    const resultOutput = `url: ${param.url}\n${autocannon.printResult(result)}`
+    console.log(resultOutput)
+
+    if (GITHUB_PR_NUMBER) { // 如果有 GITHUB_PR_NUMBER，则创建评论
+        const octokit = new Octokit({
+            auth: GITHUB_TOKEN,
+        })
+        const osInfo = `System: ${os.type()} ${os.release()} (${os.arch()})<br>Node.js: ${process.versions.node}<br>CPU: ${os.cpus().length} cores<br>Memory: ${betterBytes.format(os.totalmem())}`
+        await octokit.rest.issues.createComment({
+            owner: GITHUB_REPOSITORY.split('/')[0],
+            repo: GITHUB_REPOSITORY.split('/')[1],
+            issue_number: parseInt(GITHUB_PR_NUMBER),
+            body: `## System Info \n\n${osInfo}\n\n## Benchmarks Results\n\n\`\`\`\n${resultOutput}\n\`\`\``,
+        })
+    }
     return result
 }
 
@@ -44,7 +63,7 @@ async function sleep(time: number) {
 async function start() {
     const params: Options[] = ([
         {
-            url: '/api',
+            url: '/api/',
             method: 'GET',
         },
         {
@@ -86,15 +105,14 @@ async function start() {
         //     },
         // },
     ] as Options[]).map((param) => ({
-            ...param,
-            url: new URL(BASE_URL + param.url).toString(),
-        } as Options))
+        ...param,
+        url: new URL(BASE_URL + param.url).toString(),
+    } as Options))
 
     if (CI) {
         await sleep(5 * 1000)
     }
     await Promise.all(params.map((param) => runAutocannon(param)))
-
 }
 
 start()

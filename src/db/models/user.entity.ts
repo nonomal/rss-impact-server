@@ -1,15 +1,14 @@
-
 import { Entity, BeforeInsert, BeforeUpdate } from 'typeorm'
-import { hash } from 'bcryptjs'
-import { IsEmail } from 'class-validator'
+import { hash } from 'bcrypt'
+import { IsEmail, IsUrl } from 'class-validator'
 import { ApiProperty, OmitType, PartialType, PickType } from '@nestjs/swagger'
-
 import { Base } from './base.entity'
 import { Role } from '@/constant/role'
-import { getAccessToken } from '@/utils/helper'
+import { getAccessToken, isAllowedEmail } from '@/utils/helper'
 import { SetAclCrudField } from '@/decorators/set-acl-crud-field.decorator'
 import { FindPlaceholderDto } from '@/models/find-placeholder.dto'
 import { CustomColumn } from '@/decorators/custom-column.decorator'
+import { ENABLE_EMAIL_VALIDATION } from '@/app.config'
 
 @Entity()
 export class User extends Base {
@@ -62,8 +61,62 @@ export class User extends Base {
     })
     email: string
 
+    // 入库前校验邮箱是否有效
+    @BeforeInsert()
+    @BeforeUpdate()
+    private async validateEmail() {
+        // 如果是 demo 用户 或 管理员，则不校验
+        if (this.roles.includes(Role.demo) || this.roles.includes(Role.admin)) {
+            return
+        }
+        if (ENABLE_EMAIL_VALIDATION && this.email && !isAllowedEmail(this.email)) {
+            throw new Error(`邮箱地址 ${this.email} 不在允许的域名内`)
+        }
+    }
+
+    // 邮箱是否验证
     @SetAclCrudField({
         search: true,
+    })
+    @ApiProperty({ title: '邮箱已验证', example: true })
+    @CustomColumn({
+        default: false,
+        nullable: true,
+    })
+    emailVerified: boolean
+
+    // 禁用密码登录，原因是第三方登录时，密码是随机生成的
+    @SetAclCrudField({
+        search: true,
+    })
+    @ApiProperty({ title: '禁用密码登录', example: false })
+    @CustomColumn({
+        default: false,
+        nullable: true,
+    })
+    disablePasswordLogin: boolean
+
+    // 头像
+    @SetAclCrudField({
+        type: 'img',
+    })
+    @ApiProperty({ title: '头像', example: 'URL_ADDRESS', required: false })
+    @IsUrl({})
+    @CustomColumn({
+        length: 1024,
+        nullable: true,
+    })
+    avatar?: string
+
+    @SetAclCrudField({
+        type: 'select',
+        multiple: true,
+        search: true,
+        value: [Role.user],
+        dicData: Object.entries(Role).map(([key, value]) => ({
+            label: key,
+            value,
+        })),
     })
     @ApiProperty({ title: '角色', example: [Role.admin] })
     @CustomColumn({
@@ -94,6 +147,21 @@ export class User extends Base {
         }
     }
 
+    @SetAclCrudField({
+        search: true,
+        addDisplay: false,
+        editDisabled: true,
+        readonly: true,
+    })
+    @ApiProperty({ title: 'Auth0 ID', description: '绑定的 auth0 账号', example: 'github|114514', required: false })
+    @CustomColumn({
+        index: true,
+        unique: true,
+        length: 128,
+        nullable: true,
+    })
+    auth0Id?: string
+
 }
 
 export class CreateUser extends OmitType(User, ['id', 'createdAt', 'updatedAt', 'accessToken'] as const) { }
@@ -103,6 +171,8 @@ export class UpdateUser extends PartialType(OmitType(User, ['createdAt', 'update
 export class UpdateMe extends PartialType(PickType(User, ['id', 'username', 'email'] as const)) { }
 
 export class FindUser extends FindPlaceholderDto<User> {
+
     @ApiProperty({ type: () => [User] })
     declare data: User[]
+
 }

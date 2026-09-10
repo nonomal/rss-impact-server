@@ -10,7 +10,7 @@
   <a href="https://github.com/CaoMeiYouRen/rss-impact-server/actions?query=workflow%3ARelease" target="_blank">
     <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/CaoMeiYouRen/rss-impact-server/release.yml?branch=master">
   </a>
-  <img src="https://img.shields.io/badge/node-%3E%3D16-blue.svg" />
+  <img src="https://img.shields.io/badge/node-%3E%3D20-blue.svg" />
   <a href="https://github.com/CaoMeiYouRen/rss-impact-server#readme" target="_blank">
     <img alt="Documentation" src="https://img.shields.io/badge/documentation-yes-brightgreen.svg" />
   </a>
@@ -29,6 +29,11 @@
 > 一个支持 Hook 的 RSS 订阅工具。
 >
 > 本项目为后端部分，前端部分请参考 [rss-impact-web](https://github.com/CaoMeiYouRen/rss-impact-web)。
+>
+> **问题反馈和交流群**：
+>
+>    - QQ 群: [807530287](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=K3QRQlxv_y7KqLhdEZmfouxKv9WHLN_v&authKey=pfdJX4EkvKGQXQrtM5BR968EbtFc9WnVvz8AtLiSUTGZRgw3P1wBWESSDcEjoCZB&noverify=0&group_code=807530287)
+>    - Discord: [草梅友仁的交流群](https://discord.gg/6bfPevfyr6)
 
 ## 🏠 主页
 
@@ -38,16 +43,22 @@
 
 https://rss-demo.cmyr.dev
 
+用户名：`demo` 密码：`demodemo`
+
 > Demo 站开放注册，可以随意体验。
 >
 > Demo 站不保证可用性，仅供演示使用。
 >
 > 注意：Demo 站每次部署都会重置数据，因此仅供体验，请勿存放重要数据！
 
+如果你不希望数据被删除，可以访问内测体验站（需要注册账号）：https://rss-impact.cmyr.ltd
+
+内测体验站目前也会和 Demo 站同步更新，所以不保证可用性（但在内测结束前，数据不会删除）。
+
 ## ✨功能亮点
 
 - 项目的核心在于 Hook ，本项目支持 推送通知、Webhook 、下载、BitTorrent、AI 大模型 等多种形式的 Hook ，还支持反转触发（即 RSS 源出错的时候触发）。
-- 推送通知 Hook 基于 [push-all-in-one](https://github.com/CaoMeiYouRen/push-all-in-one) 开发，支持 Server 酱、自定义邮件、钉钉机器人、企业微信机器人 等多种推送方式。支持 markdown 格式推送。
+- 推送通知 Hook 基于 [push-all-in-one](https://github.com/CaoMeiYouRen/push-all-in-one) 开发，支持 Server 酱、自定义邮件、钉钉机器人、企业微信机器人 等多种推送方式。支持 markdown 格式推送。支持 [配置在线生成](https://push.cmyr.dev/)。
 - BitTorrent Hook 支持调用 qBitTorrent 接口来自动下载 BitTorrent ，也支持按体积过滤 BitTorrent ，解决部分 BitTorrent RSS 源没有提供 `enclosureLength` 的问题。支持 `<mediaContent/>` tag。
 - Webhook 支持 GET/POST 等全部 HTTP 方法进行调用。
 - 下载 Hook 支持按 md5 过滤资源，支持按后缀名过滤资源。
@@ -57,69 +68,18 @@ https://rss-demo.cmyr.dev
 - 支持从 OPML 文件导入订阅，也支持导出订阅为 OPML 文件。
 - 支持 Docker 一键部署。
 - 支持 Redis 缓存。
-- 支持 SQLite/MySQL/Postgres 作为数据库 (详见：[数据库配置](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docs/usage.md#数据库配置))。
+- 支持 SQLite/MySQL/Postgres 作为数据库 (详见：[数据库配置](./docs/usage.md#数据库配置))。
 - 支持配置代理。
 - 支持自动抓取全文。无需配置 css 查询器。
+- 支持 [Auth0](https://auth0.com/) 第三方一键登录。
 
 ## 📦 依赖要求
 
-
-- node >=16
+- node >=20
 
 ## 🚀 部署
 
-### Docker 镜像
-
-支持两种注册表：
-
-- Docker Hub: [`caomeiyouren/rss-impact-server`](https://hub.docker.com/r/caomeiyouren/rss-impact-server)
-- GitHub: [`ghcr.io/caomeiyouren/rss-impact-server`](https://github.com/CaoMeiYouRen/rss-impact-server/pkgs/container/rss-impact-server)
-
-支持以下架构：
-
-- `linux/amd64`
-- ~~`linux/arm64`~~
-
-> linux/arm64 尚未进行测试
-
-有以下几种 tags：
-
-| Tag            | 描述     | 举例          |
-| :------------- | :------- | :------------ |
-| `latest`       | 最新     | `latest`      |
-| `{YYYY-MM-DD}` | 特定日期 | `2024-06-07`  |
-| `{sha-hash}`   | 特定提交 | `sha-0891338` |
-| `{version}`    | 特定版本 | `1.2.3`       |
-
-### Docker Compose 部署（推荐）
-
-下载 [docker-compose.yml](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docker-compose.yml)
-
-```sh
-wget https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docker-compose.yml
-```
-
-检查有无需要修改的配置
-
-```sh
-vim docker-compose.yml  # 也可以是你喜欢的编辑器
-```
-
-> 在公网部署时请务必修改 ADMIN_PASSWORD、SESSION_SECRET 环境变量
->
-> 如果要使用自定义查询功能，请修改 BASE_URL 环境变量
-
-启动
-
-```sh
-docker-compose up -d
-```
-
-在浏览器中打开 `http://{Server IP}:3000` 即可查看结果
-
-### 更多部署方式
-
-更多部署方式请查看 [部署文档](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docs/deploy.md)
+部署方式请查看 [部署文档](./docs/deploy.md)
 
 ## 👨‍💻 使用
 
@@ -127,7 +87,7 @@ docker-compose up -d
 pnpm run start
 ```
 
-更多使用说明请参考 [使用文档](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/docs/usage.md)
+更多使用说明请参考 [使用文档](./docs/usage.md)
 
 ## 🛠️ 开发
 
@@ -176,7 +136,13 @@ pnpm run commit
 
 ## 💰 支持
 
-如果觉得这个项目有用的话请给一颗⭐️，非常感谢
+如果觉得这个项目有用的话请给一颗⭐️，非常感谢。
+
+如需商业版支持、定制开发或赞助等，请通过 [爱发电](https://afdian.com/a/CaoMeiYouRen) 联系（可直接下单）。
+
+<a href="https://afdian.com/@CaoMeiYouRen">
+  <img src="https://cdn.jsdelivr.net/gh/CaoMeiYouRen/image-hosting-01@master/images/202306192324870.png" width="312px" height="78px" alt="在爱发电支持我">
+</a>
 
 ## 🌟 Star History
 
@@ -197,6 +163,10 @@ pnpm run commit
 
 Copyright © 2024 [CaoMeiYouRen](https://github.com/CaoMeiYouRen).<br />
 This project is [AGPL-3.0](https://github.com/CaoMeiYouRen/rss-impact-server/blob/master/LICENSE) licensed.
+
+## 🏷️ 其他
+>
+> 本项目的名称来自《Genshin Impact》
 
 ***
 _This README was generated with ❤️ by [cmyr-template-cli](https://github.com/CaoMeiYouRen/cmyr-template-cli)_
